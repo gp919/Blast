@@ -1,0 +1,198 @@
+# 1~2주차 체크리스트
+
+> 이 단계의 목적은 게임을 만드는 것이 아니라 **유니티 워크플로 습득 + NGO 동작 확인 +
+> 3주차 예측/재조정을 붙일 수 있는 구조 확보**입니다.
+> 콘텐츠(맵, 적, 보스, UI)는 이 단계에서 일절 만들지 않습니다.
+>
+> 설계 근거는 `project_context.md` 2~3번 참조.
+
+---
+
+## 완료 기준 (2주차 끝)
+
+1. MPPM 가상 플레이어 2개에서 각자 캐릭터가 움직이고 서로 보인다
+2. 캐릭터 이동이 Rigidbody2D가 아닌 **직접 만든 BoxCast 기반 컨트롤러**로 동작한다
+3. 코드가 Input / Simulation / Presentation 3계층으로 분리되어 있다
+4. Network Simulator로 RTT 150ms를 걸었을 때 **입력이 굼뜬 것이 눈에 보인다**
+   (그리고 그 영상을 저장해뒀다)
+
+4번이 특히 중요합니다. 이 "문제 있는 상태" 영상이 나중에 예측 ON/OFF 비교 자료의
+OFF 쪽 소재가 됩니다. 그때 가서 찍으려면 코드를 되돌려야 해서 번거롭습니다.
+
+---
+
+# 1주차 — 환경 구축 + 유니티 워크플로
+
+## A. 환경 셋업
+
+- [ ] Unity Hub 설치, **Unity 6 LTS (6000.x LTS)** 설치
+  - 템플릿: **Universal 2D** (URP 2D Renderer)
+  - 모듈: Windows Build Support (IL2CPP) 포함
+- [ ] IDE 설정 — JetBrains Rider (재학생 무료 라이선스) 또는 VS Code + C# Dev Kit
+- [ ] Git 저장소 생성 + Unity용 `.gitignore` 적용
+  - Project Settings > Editor > Asset Serialization = **Force Text**
+  - Project Settings > Editor > Version Control Mode = **Visible Meta Files**
+  - Git LFS 설정 (`*.png`, `*.psd`, `*.wav`, `*.fbx` 등)
+- [ ] 문서 배치
+  ```
+  프로젝트루트/
+    CLAUDE.md
+    Assets/
+    docs/
+      project_context.md
+      ai-collab-log.md
+      checklist/week01-02.md
+  ```
+- [ ] Claude Code 설치 및 `CLAUDE.md` 인식 확인
+  - 새 세션에서 "이 프로젝트 규칙 요약해줘"로 로드 여부 검증
+- [ ] 에셋 확보 — Kenney(CC0)에서 플랫포머 타일셋 + 캐릭터 스프라이트 1세트만.
+  **고르는 데 30분 이상 쓰지 않습니다.**
+
+## B. C++ 출신이 짚고 넘어가야 할 개념
+
+각 항목은 "예제 하나 만들어 확인" 수준이면 충분합니다. 문서 정독은 불필요합니다.
+
+- [ ] **MonoBehaviour 생명주기** — Awake / OnEnable / Start / FixedUpdate / Update /
+  LateUpdate / OnDestroy 의 호출 순서와 조건
+  - 특히 `FixedUpdate`와 `Update`의 관계, `Time.fixedDeltaTime` vs `Time.deltaTime`
+- [ ] **직렬화 규칙** — `[SerializeField]`, public 필드, 직렬화되지 않는 타입
+  (interface, Dictionary, 프로퍼티)
+- [ ] **Prefab / Prefab Variant** — 인스턴싱과 오버라이드
+- [ ] **ScriptableObject** — 데이터 애셋. 자체 엔진의 리소스/데이터 테이블에 대응
+- [ ] **Coroutine** — 스레드가 아니라는 점, 실행 시점, 중단 조건
+- [ ] **GC와 할당 회피** — `foreach` 할당, 문자열 연결, `GetComponent` 캐싱, struct vs class.
+  Profiler로 GC Alloc 직접 관측할 것
+- [ ] **Assembly Definition (asmdef)** — 어셈블리 분리. C-1에서 바로 적용
+
+## C. 프로젝트 구조 잡기
+
+### C-1. 어셈블리 분리
+
+```
+Assets/Scripts/
+  Core/          공용 타입, 수학 유틸, 링버퍼
+  Simulation/    결정적 시뮬레이션
+  Presentation/  렌더링, 애니메이션, 카메라
+  Input/         입력 수집
+  Network/       2주차부터 사용
+```
+
+- [ ] 위 구조로 폴더 + asmdef 생성
+- [ ] 참조 방향 확인 — `Presentation -> Simulation` (O), `Simulation -> Presentation` (X)
+
+### C-2. 3계층 분리 원칙 확정
+
+`project_context.md` 3번의 계층 책임 표를 그대로 따릅니다.
+
+- [ ] 프로젝트 README에 이 원칙을 한 문단으로 적어둘 것 (나중에 기술소개서 재료)
+
+## D. 2D API 익히기
+
+- [ ] **Tilemap** — Tile Palette로 맵 한 화면, Tilemap Collider 2D + Composite Collider 2D
+- [ ] **Sprite Renderer** — Sorting Layer, Order in Layer
+- [ ] **Physics2D 캐스팅** — `BoxCast`, `Raycast`, `OverlapBox`, `ContactFilter2D`, `LayerMask`
+  - 충돌 이벤트(`OnCollisionEnter2D`)가 아니라 **캐스팅 API** 위주로.
+    커스텀 컨트롤러에서 쓸 것들입니다
+- [ ] **Input System 패키지** — Action Map 생성, `InputAction.ReadValue<T>()`로 폴링
+  - 콜백/이벤트 방식이 아니라 **폴링 방식**. 고정 틱 시뮬레이션에는 폴링이 맞습니다
+- [ ] **Animator** — 파라미터 기반 전이. 로직은 넣지 않고 Presentation에서 상태만 반영
+- [ ] **Cinemachine** — 2D Follow 카메라
+
+## E. 1주차 결과물
+
+- [ ] 타일맵 한 화면 위에서 스프라이트 캐릭터가 **좌우 이동 + 점프 + 지면 판정**
+- [ ] 이동은 `Rigidbody2D` 없이 **BoxCast 기반 커스텀 kinematic 컨트롤러**
+  - 수평 이동 -> 수평 캐스트 -> 충돌 보정 -> 수직 이동 -> 수직 캐스트 -> 보정
+  - 중력 누산, 지면 접촉 플래그, 코요테 타임까지
+- [ ] 고정 틱 루프 — 누산기 방식으로 `Simulate(fixedDt)` 호출, 렌더는 남은 알파로 보간
+  - 틱레이트는 **30Hz 또는 60Hz** 중 하나로 정하고 `project_context.md` 6번에 기록
+- [ ] 계층 분리 검증 — Simulation 어셈블리에서 `Time.deltaTime`, `Transform`,
+  `Animator`, `UnityEngine.Random` 참조가 0건인가?
+
+---
+
+# 2주차 — NGO 최소 동기화
+
+## A. 패키지 설치
+
+- [ ] `com.unity.netcode.gameobjects` (NGO 2.x)
+- [ ] `com.unity.multiplayer.playmode` (MPPM) — 에디터에서 최대 4개 플레이어 동시 실행
+- [ ] `com.unity.multiplayer.tools` — Network Profiler, Network Simulator, RNSM
+
+## B. NGO 기본기
+
+- [ ] **NetworkManager** 셋업 — Unity Transport, 접속 주소 127.0.0.1
+- [ ] Host / Client 시작 버튼만 있는 임시 UI (로비 UI 만들지 말 것)
+- [ ] **NetworkObject / NetworkBehaviour** — 플레이어 프리팹 등록 후 자동 스폰
+- [ ] **소유권 개념 정리** — `IsOwner` / `IsServer` / `IsClient` / `IsHost` / `OwnerClientId`
+  - 각각이 Host, 순수 Server, Client에서 어떤 값이 되는지 표로 정리
+- [ ] **NetworkVariable** — 위치를 나이브하게 동기화 (일부러 조악하게)
+- [ ] **ServerRpc / ClientRpc** — 왕복 1회 확인, `RequireOwnership` 옵션 동작 확인
+- [ ] **NetworkTransform vs 직접 동기화** — 둘 다 붙여보고 차이 확인
+  - 최종적으로 NetworkTransform은 **쓰지 않을** 예정. 무엇을 대체해야 하는지 파악이 목적
+
+## C. 문제를 직접 관측하기
+
+이 주차의 핵심입니다. 3주차 예측/재조정의 **필요성을 몸으로 겪는 것**이 목표입니다.
+
+- [ ] MPPM 가상 플레이어 2개 띄우고 Host + Client 접속
+- [ ] **Network Simulator로 RTT 150ms / 패킷 로스 3% 적용**
+- [ ] 서버 권위로 이동 처리 -> 입력 후 반응까지의 지연 체감
+- [ ] 클라 권위로 바꿔보기 -> 즉각 반응하지만 서버 검증이 없음을 확인
+- [ ] **두 경우 모두 화면 녹화 보관** (`01_no_prediction_150ms.mp4` 등)
+- [ ] RNSM 붙여서 RTT, 대역폭 실시간 표시
+- [ ] Network Profiler로 초당 bytes 측정 -> **`project_context.md` 6번에 기록**
+  (최적화 전후 비교용 기준선)
+
+## D. 이론 학습
+
+구현과 병행합니다. 3주차 시작 전까지 반드시 끝내세요.
+
+- [ ] **Gabriel Gambetta, "Fast-Paced Multiplayer" 1~4부** — 예측/재조정/보간의 교과서.
+  인터랙티브 데모가 있어 이해가 빠릅니다
+- [ ] **Valve, "Source Multiplayer Networking"** — 랙 보상 원리
+- [ ] **Glenn Fiedler, Gaffer On Games** — "Fix Your Timestep", "Snapshot Interpolation"
+- [ ] **Galactic Kittens** (Unity 공식 2D 코옵 NGO 샘플) 실행 후 구조 훑기
+- [ ] **Boss Room** — 도메인별 어셈블리 분리, 서버 권위 + 애니메이션으로 지연 가리는 처리
+  - 2026년부터 유지보수 중단이라 최신 NGO와 호환이 안 될 수 있음. 구조 참고용으로만
+
+## E. 2주차 결과물
+
+- [ ] 두 클라이언트에서 각자 캐릭터 조작 + 상대방 캐릭터 보임
+- [ ] 지연 조건에서의 문제 상황 영상 2종 확보
+- [ ] 기준선 수치를 `project_context.md` 6번에 기록
+- [ ] Git 커밋 이력이 기능 단위로 남아 있을 것
+
+---
+
+## 하지 말 것 (스코프 방어선)
+
+- Relay / Lobby / 매치메이킹 — 직접 IP 접속으로 충분
+- 로비 UI, 캐릭터 선택, 설정 화면
+- 아트 에셋 탐색 (Kenney에서 하나 집고 끝)
+- 맵 디자인, 적 AI, 보스, 스킬 시스템
+- `Rigidbody2D` 기반 이동 구현
+- Netcode for Entities / DOTS 검토
+- 데디케이티드 서버 빌드, 클라우드 배포
+
+---
+
+## 진행 중 남길 것
+
+기술소개서와 자소서 재료입니다. 나중에 복원하려면 몇 배 걸립니다.
+
+- [ ] 막힌 지점과 해결 과정 기록 (특히 유니티 특유의 함정)
+- [ ] 설계 판단 근거 — "왜 Rigidbody2D를 안 썼는가", "왜 폴링 방식 입력인가"
+- [ ] AI 출력을 고친 사례 -> `ai-collab-log.md`
+- [ ] 문제 상황 영상과 수치
+
+---
+
+## 다음 단계 예고 (3~5주차)
+
+참고만 하고 지금 손대지 마세요.
+
+- 입력 시퀀스 번호 + 링버퍼
+- 클라이언트 예측 (로컬 즉시 시뮬레이션)
+- 서버 재조정 (불일치 틱부터 재시뮬레이션)
+- 원격 플레이어 스냅샷 보간 버퍼
