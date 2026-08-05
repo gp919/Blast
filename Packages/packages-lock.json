@@ -137,11 +137,11 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.collab-proxy": {
-      "version": "2.13.3",
+      "version": "2.13.5",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.collections": "2.6.2"
+        "com.unity.collections": "2.6.8"
       },
       "url": "https://packages.unity.com"
     },
@@ -184,7 +184,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.ide.visualstudio": {
-      "version": "2.0.26",
+      "version": "2.0.27",
       "depth": 0,
       "source": "registry",
       "dependencies": {
