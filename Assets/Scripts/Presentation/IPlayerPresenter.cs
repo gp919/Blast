@@ -1,4 +1,5 @@
 using Blast.Core;
+using Blast.Simulation;
 
 namespace Blast.Presentation
 {
@@ -15,5 +16,10 @@ namespace Blast.Presentation
         // 둘 사이를 보간하므로 화면은 항상 최대 한 틱만큼 과거를 그립니다.
         // 60Hz 기준 16.7ms 이고, 이것이 틱레이트를 30Hz 로 낮추지 않은 이유 중 하나입니다.
         void Render(in PlayerState previous, in PlayerState current, float alpha);
+
+        // 디버그 표시 전용입니다. Presentation 은 튜닝 값으로 아무것도 계산하지
+        // 않습니다. 충돌 박스 기즈모를 시뮬레이션의 실제 크기로 그리기 위해서만
+        // 필요하고, 튜닝 애셋은 Game 계층에 있어 여기서 직접 읽을 수 없습니다.
+        void SetTuning(in CharacterTuning tuning);
     }
 }

@@ -15,6 +15,10 @@ namespace Blast.Tests
         private const int NoCollisionMask = 0;
         private const float Dt = SimulationConstants.FixedDeltaTime;
 
+        // 애셋 없이 코드로 튜닝을 주입합니다. 테스트가 프로젝트 애셋의 현재 값에
+        // 의존하면, 감각 조정하려고 점프 속도를 만졌을 뿐인데 테스트가 빨개집니다.
+        private static readonly CharacterTuning Tuning = CharacterTuning.Default;
+
         private static PlayerState CreateInitial()
         {
             return new PlayerState
@@ -43,7 +47,7 @@ namespace Blast.Tests
             PlayerState state = CreateInitial();
             for (uint tick = 0; tick < tickCount; tick++)
             {
-                state = SimulationWorld.Step(state, MakeInput(tick), Dt, NoCollisionMask);
+                state = SimulationWorld.Step(state, MakeInput(tick), Tuning, Dt, NoCollisionMask);
             }
             return state;
         }
@@ -61,7 +65,7 @@ namespace Blast.Tests
                 int ticksThisFrame = accumulator.Advance(frameTime);
                 for (int i = 0; i < ticksThisFrame; i++)
                 {
-                    state = SimulationWorld.Step(state, MakeInput(tick), Dt, NoCollisionMask);
+                    state = SimulationWorld.Step(state, MakeInput(tick), Tuning, Dt, NoCollisionMask);
                     tick++;
                 }
             }
@@ -121,7 +125,7 @@ namespace Blast.Tests
             PlayerState at60 = DriveForOneSecond(60).State;
             PlayerState at30 = DriveForOneSecond(30).State;
 
-            float maxTravelPerTick = Mathf.Abs(CharacterController2D.TerminalFallSpeed) * Dt;
+            float maxTravelPerTick = Mathf.Abs(Tuning.TerminalFallSpeed) * Dt;
             float difference = Mathf.Abs(at30.Position.y - at60.Position.y);
 
             Assert.That(difference, Is.LessThanOrEqualTo(maxTravelPerTick + 1e-4f),

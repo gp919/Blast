@@ -19,10 +19,16 @@ namespace Blast.Simulation
     // 달라지면 결과가 갈라집니다. 지금은 정적 타일맵뿐이라 문제되지 않습니다.
     public static class SimulationWorld
     {
+        // 튜닝도 dt 와 같은 이유로 인자입니다. 이 타입이 애셋을 직접 읽으면
+        // 테스트에서 임의 값으로 돌려볼 수 없고, 값의 출처가 숨어버립니다.
+        //
+        // 한 번의 Step 호출 안에서는 튜닝이 고정입니다. 틱 도중에 값이 바뀌면
+        // 같은 입력이 다른 결과를 내고 재조정이 성립하지 않습니다.
         public static PlayerState Step(
-            in PlayerState previous, in InputCommand input, float fixedDt, int groundLayerMask)
+            in PlayerState previous, in InputCommand input, in CharacterTuning tuning,
+            float fixedDt, int groundLayerMask)
         {
-            return CharacterController2D.Step(previous, input, fixedDt, groundLayerMask);
+            return CharacterController2D.Step(previous, input, tuning, fixedDt, groundLayerMask);
         }
     }
 }

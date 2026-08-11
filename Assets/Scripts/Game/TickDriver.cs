@@ -26,6 +26,11 @@ namespace Blast.Game
         // 합성 루트가 주입합니다.
         [SerializeField] private LayerMask _groundLayer;
 
+        // 캐릭터 튜닝 애셋입니다. 시뮬레이션 상태와 달리 [SerializeField] 로
+        // 노출해도 됩니다. 시뮬레이션이 쓰는 값이 아니라 사람이 정하는 설계
+        // 데이터라 씬이 오염될 여지가 없습니다.
+        [SerializeField] private CharacterTuningAsset _tuningAsset;
+
         private readonly IPlayerInputSource _inputSource = new KeyboardInputSource();
 
         private int _groundLayerMask;
@@ -50,6 +55,15 @@ namespace Blast.Game
         public float Alpha => _accumulator.Alpha;
         public float AccumulatorRemainder => _accumulator.Remainder;
 
+        // 애셋이 비어 있으면 기본값으로 돌아갑니다. 캐릭터가 아예 못 움직이는
+        // 것보다 낫고, Awake 에서 경고를 한 번 남기므로 놓칠 일도 없습니다.
+        //
+        // Awake 에서 캐싱하지 않는 이유가 이 이슈의 요점입니다. 매 프레임 애셋을
+        // 다시 읽어야 Play 중에 인스펙터에서 바꾼 값이 즉시 반영됩니다.
+        // 값 8 개짜리 struct 복사라 프레임당 한 번은 무시할 수 있는 비용입니다.
+        public CharacterTuning CurrentTuning =>
+            _tuningAsset != null ? _tuningAsset.ToTuning() : CharacterTuning.Default;
+
         private void Awake()
         {
             // 레이어를 지정하지 않으면 캐스트가 아무것도 맞히지 못해 캐릭터가
@@ -61,6 +75,14 @@ namespace Blast.Game
                 Debug.LogWarning(
                     "TickDriver 의 Ground Layer 가 비어 있어 모든 레이어를 충돌 대상으로 씁니다. "
                     + "Inspector 에서 지정하세요.", this);
+            }
+
+            if (_tuningAsset == null)
+            {
+                Debug.LogWarning(
+                    "TickDriver 의 Tuning Asset 이 비어 있어 CharacterTuning.Default 를 씁니다. "
+                    + "Project 창에서 Create > Blast > Character Tuning 으로 만들어 지정하세요.",
+                    this);
             }
 
             _currentState = new PlayerState
@@ -87,6 +109,11 @@ namespace Blast.Game
             // 누산 로직 자체는 FixedTickAccumulator 가 들고 있어 테스트가 가능합니다.
             int ticksThisFrame = _accumulator.Advance(Time.deltaTime);
 
+            // 튜닝은 프레임 진입 시 한 번만 읽어 이번 프레임의 모든 틱에 같은 값을
+            // 씁니다. 틱마다 다시 읽으면 한 프레임 안에서도 값이 갈릴 수 있고,
+            // 재조정 루프가 같은 입력에 다른 결과를 내게 됩니다.
+            CharacterTuning tuning = CurrentTuning;
+
             // 계층: Simulation.
             for (int i = 0; i < ticksThisFrame; i++)
             {
@@ -98,7 +125,8 @@ namespace Blast.Game
 
                 _previousState = _currentState;
                 _currentState = SimulationWorld.Step(
-                    _currentState, input, SimulationConstants.FixedDeltaTime, _groundLayerMask);
+                    _currentState, input, tuning,
+                    SimulationConstants.FixedDeltaTime, _groundLayerMask);
 
                 _tick++;
             }
@@ -108,6 +136,8 @@ namespace Blast.Game
             // 계층: Presentation. 누산기에 남은 시간이 곧 다음 틱까지의 진행률입니다.
             if (_presenter != null)
             {
+                // 기즈모가 실제 충돌 박스를 그리도록 이번 프레임 튜닝을 넘깁니다.
+                _presenter.SetTuning(tuning);
                 _presenter.Render(_previousState, _currentState, _accumulator.Alpha);
             }
         }
