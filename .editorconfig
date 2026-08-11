@@ -34,6 +34,15 @@ csharp_style_var_for_built_in_types = false:warning
 csharp_style_var_when_type_is_apparent = true:suggestion
 csharp_style_var_elsewhere = false:warning
 
+# --- Unity 전용 억제 ---
+# UnityEngine.Object 는 == 와 != 를 오버로드해 파괴된 객체를 null 로 취급합니다.
+# ?. 와 ?? 와 is null 은 그 오버로드를 거치지 않는 순수 참조 비교라, 파괴된
+# 오브젝트에서 null 이 아닌 것으로 판정됩니다. 아래 제안들은 따르면 버그가 됩니다.
+dotnet_diagnostic.IDE0029.severity = none
+dotnet_diagnostic.IDE0030.severity = none
+dotnet_diagnostic.IDE0031.severity = none
+dotnet_diagnostic.IDE0041.severity = none
+
 # --- 중괄호와 배치 ---
 csharp_new_line_before_open_brace = all
 csharp_prefer_braces = true:suggestion

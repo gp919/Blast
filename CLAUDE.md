@@ -43,6 +43,24 @@ AI는 도구로 활용합니다. 다만 **작업자가 설명하지 못하는 �
 
 ---
 
+## 기능 완료 기준
+
+구현한 기능은 **확인 수단이 함께 있어야 완료**입니다. 상세와 근거는
+`docs/project_context.md` 3번 "관측 가능성" 절 참조.
+
+- 순수 로직 → EditMode 테스트
+- 런타임 상태값 → Inspector 읽기 전용 표시
+- 공간적인 것 → Scene 기즈모
+- 시간에 따라 변하는 수치 → 화면 오버레이
+
+기능을 구현할 때 어느 수단을 붙일지 함께 제안하세요. 관측 수단이 없으면 완료로
+보고하지 마세요.
+
+시뮬레이션 상태를 `[SerializeField]`로 노출하지 마세요. 씬 파일에 런타임 값이 저장되어
+오염됩니다. `CustomEditor`로 읽기 전용 패널을 그립니다.
+
+---
+
 ## 유니티 파일 취급
 
 건드리면 프로젝트가 깨지는 파일들입니다.
@@ -60,7 +78,7 @@ AI는 도구로 활용합니다. 다만 **작업자가 설명하지 못하는 �
 
 ## Git 운용
 
-상세 규칙은 `docs/project_context.md` 10번 참조.
+아래가 전체 규칙입니다. 다른 문서에 중복해 두지 않습니다.
 
 ### Claude Code가 하는 것
 
@@ -122,10 +140,15 @@ Refs #12
 어셈블리 참조 방향은 단방향입니다. 역방향 참조를 만드는 변경은 하지 마세요.
 
 ```
-Network      -> Simulation -> Core
-Presentation -> Simulation -> Core
-Input        -> Core
+Game -> Network      -> Simulation -> Core
+     -> Presentation -> Simulation -> Core
+     -> Input        -> Core
 ```
+
+`Blast.Game`은 합성 루트입니다. 모두를 참조하고 아무도 참조하지 않습니다.
+Input과 Simulation을 동시에 봐야 하는 코드(틱 드라이버 등)는 전부 여기 둡니다.
+
+`tools/check-layering.ps1`로 참조 방향과 아래 금지 심볼을 검증할 수 있습니다.
 
 Simulation 어셈블리에서 `Time.deltaTime`, `Time.time`, `UnityEngine.Random`,
 `Transform`, `Animator`, `Rigidbody2D` 참조 금지. 상세는 `docs/project_context.md` 3번.
@@ -150,15 +173,28 @@ Simulation 어셈블리에서 `Time.deltaTime`, `Time.time`, `UnityEngine.Random
 ## 명령어
 
 ```bash
-# 유니티 경로는 설치 후 실제 경로로 교체할 것
-# UNITY="C:/Program Files/Unity/Hub/Editor/<version>/Editor/Unity.exe"
+UNITY="C:/Program Files/Unity/Hub/Editor/6000.5.6f1/Editor/Unity.exe"
 
 # 컴파일 검증
-# "$UNITY" -batchmode -quit -projectPath . -logFile -
+"$UNITY" -batchmode -quit -projectPath . -logFile -
 
 # EditMode 테스트
-# "$UNITY" -batchmode -runTests -testPlatform EditMode -projectPath . -logFile -
+"$UNITY" -batchmode -runTests -testPlatform EditMode -projectPath . -logFile -
 ```
+
+**에디터가 열려 있으면 위 두 명령은 실패합니다.** 프로젝트 락 때문입니다.
+평소에는 에디터 안에서 확인하는 쪽이 빠릅니다.
+
+- 컴파일: 에디터 포커스 후 콘솔
+- 테스트: Window > General > Test Runner > EditMode > Run All
+
+```powershell
+# 계층 검증. 에디터 없이 언제든 실행 가능
+powershell -ExecutionPolicy Bypass -File tools/check-layering.ps1
+```
+
+`check-layering.ps1` 은 asmdef 참조 방향과 Simulation 계층 금지 심볼을 검사합니다.
+코드를 건드린 뒤에는 이것부터 돌리세요.
 
 멀티플레이 테스트는 MPPM(Multiplayer Play Mode) 가상 플레이어를 사용합니다. 빌드 불필요.
 

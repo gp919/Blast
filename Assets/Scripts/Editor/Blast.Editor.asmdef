@@ -1,0 +1,20 @@
+{
+    "name": "Blast.Editor",
+    "rootNamespace": "Blast.Editor",
+    "references": [
+        "Blast.Core",
+        "Blast.Simulation",
+        "Blast.Game"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

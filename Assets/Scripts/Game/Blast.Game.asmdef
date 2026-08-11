@@ -1,0 +1,20 @@
+{
+    "name": "Blast.Game",
+    "rootNamespace": "Blast.Game",
+    "references": [
+        "Blast.Core",
+        "Blast.Simulation",
+        "Blast.Input",
+        "Blast.Presentation",
+        "Blast.Network"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

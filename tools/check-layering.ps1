@@ -36,12 +36,22 @@ if ([string]::IsNullOrEmpty($ScriptsRoot)) {
 $violations = New-Object System.Collections.Generic.List[string]
 
 # 허용된 어셈블리 참조. 여기에 없는 Blast.* 참조는 전부 위반입니다.
+# Blast.Game 은 합성 루트라 모두를 참조하고 아무도 참조하지 않습니다.
+# 다른 어셈블리의 허용 목록에 Blast.Game 이 없으므로 역참조는 자동으로 걸립니다.
 $allowedReferences = @{
     "Blast.Core"         = @()
     "Blast.Simulation"   = @("Blast.Core")
     "Blast.Input"        = @("Blast.Core")
     "Blast.Presentation" = @("Blast.Core", "Blast.Simulation")
     "Blast.Network"      = @("Blast.Core", "Blast.Simulation")
+    "Blast.Game"         = @("Blast.Core", "Blast.Simulation", "Blast.Input", "Blast.Presentation", "Blast.Network")
+
+    # 테스트는 검증 대상 계층만 참조합니다. Presentation 이나 Game 을 끌어오기
+    # 시작하면 테스트가 아니라 통합 테스트가 된 것이므로 여기서 걸립니다.
+    "Blast.Tests.EditMode" = @("Blast.Core", "Blast.Simulation")
+
+    # 에디터 전용 툴입니다. 빌드에 포함되지 않으므로 런타임 계층 규칙 밖입니다.
+    "Blast.Editor"       = @("Blast.Core", "Blast.Simulation", "Blast.Input", "Blast.Presentation", "Blast.Network", "Blast.Game")
 }
 
 # Simulation 계층 금지 심볼. 키는 정규식, 값은 위반 사유입니다.
@@ -65,7 +75,14 @@ $ScriptsRoot = (Resolve-Path $ScriptsRoot).Path
 # ---------------------------------------------------------------
 Write-Host "[1/2] 어셈블리 참조 방향 검사" -ForegroundColor Cyan
 
-$asmdefFiles = Get-ChildItem -Path $ScriptsRoot -Filter *.asmdef -Recurse -File
+# 테스트 어셈블리는 Assets/Tests 에 있으므로 같이 훑습니다.
+$searchRoots = @($ScriptsRoot)
+$testsRoot = Join-Path (Split-Path $ScriptsRoot -Parent) "Tests"
+if (Test-Path $testsRoot) {
+    $searchRoots += (Resolve-Path $testsRoot).Path
+}
+
+$asmdefFiles = @(Get-ChildItem -Path $searchRoots -Filter *.asmdef -Recurse -File)
 if ($asmdefFiles.Count -eq 0) {
     $violations.Add("asmdef 파일이 하나도 없습니다. 어셈블리 분리가 되어 있지 않습니다.")
 }
