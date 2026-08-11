@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b9f25871f329ad94daa35be1b1e1d807, type: 3}
   m_Name: CharacterTuning
   m_EditorClassIdentifier: Blast.Game::Blast.Game.CharacterTuningAsset
-  _moveSpeedPerSecond: 8
+  _moveSpeedPerSecond: 5
   _gravityPerSecond: -30
   _terminalFallSpeed: -20
-  _jumpSpeedPerSecond: 13
+  _jumpSpeedPerSecond: 8
   _coyoteTicks: 6
   _boxSize: {x: 0.4, y: 0.5}
   _skinWidth: 0.02

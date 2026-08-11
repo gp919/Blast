@@ -208,8 +208,9 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
 
 > **작업하면서 직접 갱신하세요.** 새 챗을 열 때 현재 위치를 파악하는 근거가 됩니다.
 
-**현재 주차**: 1주차
-**현재 작업 항목**: 1주차 E 완료. 다음은 2주차 A — NGO 패키지 설치
+**현재 주차**: 2주차
+**현재 작업 항목**: 2주차 A 완료 (이슈 #1). 다음은 2주차 B — 플레이어 프리팹
+NetworkObject 스폰과 소유권 정리. 마일스톤 M2
 
 ### 완료
 
@@ -229,10 +230,21 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
 - `Presentation/PlayerPresenter` — 알파 보간, 충돌 박스 기즈모
 - `Game/TickDriver` — 고정 틱 누산기 루프
 
+**네트워크 (2주차 A, 이슈 #1)**
+- NGO 2.13.1, MPPM 2.0.2, multiplayer tools 2.2.10 설치
+- `NetworkManager` — Unity Transport, 127.0.0.1:7777, Allow Remote Connections 끔.
+  Topology 는 인스펙터에 노출되지 않으며 기본값 `ClientServer` 를 그대로 씀
+- `Network/ConnectionLauncher` — NGO 접속 래퍼. NGO 타입을 만지는 유일한 지점이라
+  `Blast.Game` 은 NGO 어셈블리를 참조하지 않음. 시작 시 Topology 와 NGO TickRate 로그
+- `Game/ConnectionHud` — IMGUI 임시 접속 UI. 상태 변화 시에만 문자열 재조립.
+  F1 로 표시 전환 (영상 촬영용)
+- MPPM 가상 플레이어 2개로 Host + Client 접속 확인
+
 **검증 수단**
 - `tools/check-layering.ps1` — asmdef 참조 방향 + Simulation 금지 심볼
 - `Tests/EditMode` — 누산기 시간 보존, 클램프, 결정성, 프레임레이트 무관성 12개 케이스
 - `Editor/TickDriverEditor` — Play 중 시뮬레이션 상태 읽기 전용 표시
+- RNSM (`Assets/Settings/NetStatsMonitorConfiguration.asset`) — 런타임 RTT 와 대역폭 표시
 
 ### 진행 중
 - (없음)
@@ -251,6 +263,13 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
   ```
 
   비교 자료로 쓸 것은 코드가 아니라 **영상**입니다. 7번 산출물 관리 참조.
+- **MPPM 가상 플레이어는 씬과 프리팹을 디스크에서 읽습니다.** 별도 프로세스이므로
+  메인 에디터의 저장 안 된 변경이 보이지 않고, Play 진입은 씬을 저장하지 않습니다.
+  클론에만 오브젝트가 없거나 프리팹 수정이 반영되지 않으면 대개 이것입니다.
+  **Play 전에 저장하는 것을 습관으로 둡니다.**
+- **콘솔의 `[RelayService] Bus validation failed` 는 Unity Relay 가 아닙니다.**
+  `com.unity.ai.assistant` 패키지 내부의 메시지 버스 이름이 우연히 같을 뿐이고
+  NGO 접속과 무관합니다. 영상 촬영 시 콘솔이 지저분해지므로 해당 패키지 제거 검토.
 - **Enter Play Mode Options 의 Domain Reload 를 켰습니다** (2026-08-11 변경).
   `EditorSettings.asset` 의 `m_EnterPlayModeOptions` 를 1 에서 0 으로 바꿨습니다.
   이전 값 1 은 DisableDomainReload 라 Play 진입은 빨랐지만 static 필드가 Play 마다
@@ -276,7 +295,7 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
 | 프레임당 최대 틱 | **5** | death spiral 방지. 초과분은 버림 |
 | 프레임 시간 상한 | **0.25초** | 누산 전에 자름 |
 | 코요테 타임 | **6틱 (100ms)** | |
-| 스냅샷 전송 레이트 | 미정 | 틱레이트와 분리. 2주차에 결정 |
+| 스냅샷 전송 레이트 | **30Hz** | NGO `NetworkConfig.TickRate` 기본값. 2026-08-12 확정. 시뮬레이션 60Hz 와 별개다. 계산 주기가 아니라 송신 주기이며, 이 분리가 60Hz 를 택할 수 있는 근거다. 기준선 대역폭은 이 조건에서 측정한다 |
 | 보간 지연 버퍼 | 미정 | 100~200ms 범위 |
 | 입력 버퍼 크기 | 미정 | 60Hz 기준 최소 15틱. 마스킹 위해 2의 거듭제곱 권장 |
 | 재조정 허용 오차 | 미정 | 위치 임계값 |
@@ -418,7 +437,7 @@ ScriptableObject 애셋으로 합니다. **씬이나 프리팹에 직렬화하�
 | 종류 | 라벨 |
 |---|---|
 | 계층 | `core` `sim` `net` `present` `input` `tool` |
-| 유형 | `feat` `fix` `refactor` `perf` `docs` `test` |
+| 유형 | `feat` `fix` `refactor` `perf` `docs` `test` `chore` |
 | 특수 | `portfolio` (영상·수치 등 산출물 확보 필요), `blocked` |
 
 `portfolio` 라벨은 7번 산출물 표와 연동합니다. 그 시점을 놓치면 나중에 복원이 어렵습니다.

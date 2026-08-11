@@ -3,7 +3,8 @@
     "rootNamespace": "Blast.Network",
     "references": [
         "Blast.Core",
-        "Blast.Simulation"
+        "Blast.Simulation",
+        "Unity.Netcode.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
