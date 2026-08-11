@@ -33,13 +33,26 @@ namespace Blast.Game
         {
             _launcher.Attach();
             _launcher.StateChanged += RebuildStatusText;
+
+            // 스폰과 디스폰도 표시가 바뀌는 시점입니다. 이벤트로 받아야 OnGUI 에서
+            // 매 프레임 레지스트리를 들여다보지 않습니다.
+            PlayerRegistry.PlayerSpawned += HandleRegistryChanged;
+            PlayerRegistry.PlayerDespawned += HandleRegistryChanged;
+
             RebuildStatusText();
         }
 
         private void OnDestroy()
         {
             _launcher.StateChanged -= RebuildStatusText;
+            PlayerRegistry.PlayerSpawned -= HandleRegistryChanged;
+            PlayerRegistry.PlayerDespawned -= HandleRegistryChanged;
             _launcher.Detach();
+        }
+
+        private void HandleRegistryChanged(PlayerHandle player)
+        {
+            RebuildStatusText();
         }
 
         private void OnGUI()
@@ -59,7 +72,7 @@ namespace Blast.Game
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(PanelMargin, PanelMargin, PanelWidth, 140f), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(PanelMargin, PanelMargin, PanelWidth, 200f), GUI.skin.box);
 
             if (_launcher.IsRunning)
             {
@@ -105,6 +118,30 @@ namespace Blast.Game
 
             _statusBuilder.Append('\n');
             _statusBuilder.Append(_launcher.LastMessage);
+
+            if (_launcher.IsRunning)
+            {
+                // 소유권 값 관측용입니다. Host 에서 IsServer 와 IsClient 가 동시에
+                // 참이라는 것, 그리고 로컬 소유 플레이어의 OwnerClientId 가 무엇인지가
+                // 여기서 눈으로 확인됩니다.
+                _statusBuilder.Append("\nserver ");
+                _statusBuilder.Append(_launcher.IsServer ? "O" : "X");
+                _statusBuilder.Append("  client ");
+                _statusBuilder.Append(_launcher.IsClient ? "O" : "X");
+                _statusBuilder.Append("  host ");
+                _statusBuilder.Append(_launcher.IsHost ? "O" : "X");
+
+                _statusBuilder.Append("\nlocalClientId ");
+                _statusBuilder.Append(_launcher.LocalClientId);
+
+                _statusBuilder.Append("\nplayers ");
+                _statusBuilder.Append(PlayerRegistry.Players.Count);
+
+                PlayerHandle localPlayer = PlayerRegistry.LocalPlayer;
+                _statusBuilder.Append("  ownerId ");
+                _statusBuilder.Append(localPlayer != null ? localPlayer.OwnerId.ToString() : "없음");
+            }
+
             _statusBuilder.Append("\nF1 표시 전환");
 
             _statusText = _statusBuilder.ToString();

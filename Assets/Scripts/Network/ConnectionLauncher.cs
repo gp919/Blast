@@ -36,6 +36,13 @@ namespace Blast.Network
 
         public string LastMessage { get; private set; } = "대기 중";
 
+        // NGO 의 역할 플래그입니다. Host 에서는 IsServer 와 IsClient 가 동시에 참이라는
+        // 것이 소유권 이해의 출발점이라, 값을 그대로 관측할 수 있게 노출합니다.
+        public bool IsServer { get; private set; }
+        public bool IsClient { get; private set; }
+        public bool IsHost { get; private set; }
+        public ulong LocalClientId { get; private set; }
+
         public bool IsRunning => Mode != ConnectionMode.None;
 
         private bool _isSubscribed;
@@ -195,7 +202,26 @@ namespace Blast.Network
 
         private void RaiseStateChanged()
         {
+            RefreshFlags();
             StateChanged?.Invoke();
+        }
+
+        private void RefreshFlags()
+        {
+            NetworkManager manager = NetworkManager.Singleton;
+            if (manager == null)
+            {
+                IsServer = false;
+                IsClient = false;
+                IsHost = false;
+                LocalClientId = 0;
+                return;
+            }
+
+            IsServer = manager.IsServer;
+            IsClient = manager.IsClient;
+            IsHost = manager.IsHost;
+            LocalClientId = manager.LocalClientId;
         }
     }
 }
