@@ -198,8 +198,9 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
 
 > **작업하면서 직접 갱신하세요.** 새 챗을 열 때 현재 위치를 파악하는 근거가 됩니다.
 
-**현재 주차**: 1주차
-**현재 작업 항목**: 1주차 E 완료. 다음은 2주차 A — NGO 패키지 설치
+**현재 주차**: 2주차
+**현재 작업 항목**: 2주차 A — NGO / MPPM / multiplayer tools 패키지 설치와
+NetworkManager 셋업 (이슈 #1, 브랜치 `chore/1-ngo-setup`, 마일스톤 M2)
 
 ### 완료
 
@@ -225,7 +226,9 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
 - `Editor/TickDriverEditor` — Play 중 시뮬레이션 상태 읽기 전용 표시
 
 ### 진행 중
-- (없음)
+- **2주차 A — 패키지 설치와 접속 성립** (이슈 #1). NGO 2.x, MPPM,
+  multiplayer tools 설치 후 MPPM 가상 플레이어 2개로 127.0.0.1 접속까지.
+  스폰과 위치 동기화는 다음 이슈로 분리
 
 ### 저장소 특이사항
 
@@ -396,7 +399,7 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
 | 종류 | 라벨 |
 |---|---|
 | 계층 | `core` `sim` `net` `present` `input` `tool` |
-| 유형 | `feat` `fix` `refactor` `perf` `docs` `test` |
+| 유형 | `feat` `fix` `refactor` `perf` `docs` `test` `chore` |
 | 특수 | `portfolio` (영상·수치 등 산출물 확보 필요), `blocked` |
 
 `portfolio` 라벨은 7번 산출물 표와 연동합니다. 그 시점을 놓치면 나중에 복원이 어렵습니다.
