@@ -179,6 +179,33 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
 
 **검증법**: Simulation 어셈블리에서 위 금지 심볼 참조가 0건인가?
 
+### NGO 소유권 값
+
+MPPM 2인 접속에서 직접 관측한 값입니다 (2026-08-12, 이슈 #5).
+
+| | `IsServer` | `IsClient` | `IsHost` | `LocalClientId` | 자기 플레이어의 `OwnerClientId` |
+|---|---|---|---|---|---|
+| Host | O | O | O | 0 | 0 |
+| Client | X | O | X | 1 | 1 |
+| 순수 Server | O | X | X | 0 | 없음 (플레이어 오브젝트 자체가 없음) |
+
+핵심은 **Host 에서 `IsServer` 와 `IsClient` 가 동시에 참**이라는 것입니다. Host 는
+서버와 클라이언트를 한 프로세스에서 겸합니다. 그래서 `if (IsClient)` 로 클라이언트
+전용 처리를 감싸면 Host 에서도 실행되고, `if (IsServer)` 로 감싼 권위 판정도 Host 에서
+실행됩니다. 둘 다 도는 것이 정상이며, **Host 에서만 우연히 동작하는 코드**가 여기서
+나옵니다. 판정 코드는 항상 순수 Client 로 검증해야 합니다.
+
+`IsHost` 는 `IsServer && IsClient` 의 축약이므로 분기 조건으로 쓸 일이 거의 없습니다.
+쓰고 싶어지면 대개 "서버인가"나 "내 것인가"를 물어야 하는 자리입니다.
+
+`OwnerClientId` 는 오브젝트마다 다릅니다. 위 표는 자기가 조종하는 플레이어의 값이고,
+Host 화면에 보이는 Client 캐릭터의 `OwnerClientId` 는 1 입니다. "내 것인가"는
+`IsOwner`(= `OwnerClientId == LocalClientId`)로 판단합니다.
+
+순수 Server 행은 NGO 의미에서 도출한 값이며 아직 관측하지 않았습니다. 임시 UI 에
+Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖이라 필요해지면 그때
+확인합니다.
+
 ### 권한 모델
 
 | 대상 | 권한 | 처리 |
@@ -209,8 +236,8 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
 > **작업하면서 직접 갱신하세요.** 새 챗을 열 때 현재 위치를 파악하는 근거가 됩니다.
 
 **현재 주차**: 2주차
-**현재 작업 항목**: 2주차 A 완료 (이슈 #1). 다음은 2주차 B — 플레이어 프리팹
-NetworkObject 스폰과 소유권 정리. 마일스톤 M2
+**현재 작업 항목**: 2주차 B 스폰과 소유권 완료 (이슈 #5). 다음은 NetworkVariable
+기반 나이브 위치 동기화. 마일스톤 M2
 
 ### 완료
 
@@ -239,6 +266,19 @@ NetworkObject 스폰과 소유권 정리. 마일스톤 M2
 - `Game/ConnectionHud` — IMGUI 임시 접속 UI. 상태 변화 시에만 문자열 재조립.
   F1 로 표시 전환 (영상 촬영용)
 - MPPM 가상 플레이어 2개로 Host + Client 접속 확인
+
+**네트워크 (2주차 B, 이슈 #5)**
+- `Player.prefab` — `NetworkObject` + `Network/NetworkPlayer` + `PlayerPresenter`.
+  NetworkManager 의 Default Player Prefab 으로 등록해 접속 시 자동 스폰
+- `Network/PlayerHandle` — 계층 경계용 핸들. NGO 타입을 상속하지 않아서
+  상위 계층이 `Unity.Netcode.Runtime` 참조 없이 플레이어를 다룰 수 있음.
+  이 타입이 없으면 CS0012 로 컴파일이 깨진다 (`docs/ai-collab-log.md` 참조)
+- `Network/PlayerRegistry` — 스폰된 플레이어와 로컬 소유자. 스폰/디스폰 이벤트
+- `Game/TickDriver` — 프리젠터를 씬에서 물지 않고 스폰 시 주입받도록 변경.
+  로컬 소유 플레이어가 없으면 틱을 진행하지 않음
+- 스폰 위치는 `SpawnIndex` 의 결정적 함수. 위치를 주고받지 않아도 모든 피어가
+  같은 자리에 그린다. 움직이는 플랫폼을 대역폭 0 으로 동기화하는 것과 같은 원리
+- 원격 캐릭터는 스폰 시 한 번만 배치되고 움직이지 않음. 위치 동기화는 다음 이슈
 
 **검증 수단**
 - `tools/check-layering.ps1` — asmdef 참조 방향 + Simulation 금지 심볼

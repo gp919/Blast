@@ -42,6 +42,9 @@ namespace Blast.Editor
             // 시뮬레이션 상태를 에디터에서 바꿀 수 있으면 관측이 아니라 개입이 됩니다.
             using (new EditorGUI.DisabledScope(true))
             {
+                // 접속 전에는 구동 대상이 없어 틱이 진행하지 않습니다.
+                // 캐릭터가 안 움직일 때 원인을 여기서 먼저 가릅니다.
+                EditorGUILayout.Toggle("로컬 플레이어 스폰됨", driver.HasLocalPlayer);
                 EditorGUILayout.LabelField("틱", driver.CurrentTick.ToString());
                 EditorGUILayout.LabelField("이번 프레임 틱 수", driver.LastFrameTickCount.ToString());
                 EditorGUILayout.LabelField("알파", driver.Alpha.ToString("F3"));

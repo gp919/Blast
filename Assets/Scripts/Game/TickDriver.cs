@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using Blast.Core;
 using Blast.Input;
+using Blast.Network;
 using Blast.Presentation;
 using Blast.Simulation;
 using UnityEngine;
@@ -19,8 +21,14 @@ namespace Blast.Game
     // 필요 없습니다. 순서가 이 함수 안에 그대로 드러납니다.
     public sealed class TickDriver : MonoBehaviour
     {
-        [SerializeField] private PlayerPresenter _presenter;
+        // 플레이어는 씬에 미리 있지 않고 접속 후 NGO 가 스폰합니다. 그래서 프리젠터를
+        // [SerializeField] 로 물어둘 수 없고, PlayerRegistry 등록 시점에 받습니다.
         [SerializeField] private Vector2 _spawnPosition = new Vector2(0f, 2f);
+
+        // 두 캐릭터가 겹쳐 스폰되면 둘 다 있는지 눈으로 확인할 수 없습니다.
+        // SpawnIndex 로 옆으로 밀어 놓습니다. 모든 피어가 같은 식으로 계산하므로
+        // 위치를 주고받지 않아도 원격 캐릭터가 제자리에 그려집니다.
+        private const float SpawnSpacing = 2f;
 
         // 충돌 대상 레이어입니다. Simulation 은 설정을 들고 있지 않으므로
         // 합성 루트가 주입합니다.
@@ -39,6 +47,11 @@ namespace Blast.Game
         private PlayerState _currentState;
         private uint _tick;
 
+        // 이 피어가 구동하는 플레이어입니다. 접속 전과 디스폰 후에는 null 이며,
+        // 그동안에는 시뮬레이션할 대상 자체가 없습니다.
+        private PlayerHandle _localPlayer;
+        private PlayerPresenter _localPresenter;
+
         // 절대 readonly 로 바꾸지 마세요. 분석기가 그렇게 제안하지만 따르면 깨집니다.
         // readonly struct 필드에 비-readonly 메서드를 호출하면 C# 이 방어적 복사본을
         // 만들어서, Advance 는 복사본을 증가시키고 이 필드는 영원히 0 에 머뭅니다.
@@ -52,6 +65,7 @@ namespace Blast.Game
         public uint CurrentTick => _tick;
         public int LastFrameTickCount => _lastFrameTickCount;
         public PlayerState CurrentState => _currentState;
+        public bool HasLocalPlayer => _localPlayer != null;
         public float Alpha => _accumulator.Alpha;
         public float AccumulatorRemainder => _accumulator.Remainder;
 
@@ -85,10 +99,41 @@ namespace Blast.Game
                     this);
             }
 
-            _currentState = new PlayerState
+            _currentState = CreateSpawnState(0);
+            _previousState = _currentState;
+        }
+
+        private void OnEnable()
+        {
+            PlayerRegistry.PlayerSpawned += HandlePlayerSpawned;
+            PlayerRegistry.PlayerDespawned += HandlePlayerDespawned;
+
+            // 드라이버가 뒤늦게 켜지는 경우에도 이미 스폰된 플레이어를 놓치지 않습니다.
+            IReadOnlyList<PlayerHandle> players = PlayerRegistry.Players;
+            for (int i = 0; i < players.Count; i++)
+            {
+                HandlePlayerSpawned(players[i]);
+            }
+        }
+
+        private void OnDisable()
+        {
+            PlayerRegistry.PlayerSpawned -= HandlePlayerSpawned;
+            PlayerRegistry.PlayerDespawned -= HandlePlayerDespawned;
+        }
+
+        // 스폰 위치는 SpawnIndex 의 결정적 함수입니다. 서버가 위치를 보내주지 않아도
+        // 모든 피어가 같은 값을 계산합니다. 이것이 3주차 이후 움직이는 플랫폼을
+        // 대역폭 0 으로 동기화하는 것과 같은 원리입니다.
+        private PlayerState CreateSpawnState(int spawnIndex)
+        {
+            Vector2 position = _spawnPosition;
+            position.x += spawnIndex * SpawnSpacing;
+
+            return new PlayerState
             {
                 Tick = 0,
-                Position = _spawnPosition,
+                Position = position,
                 Velocity = Vector2.zero,
                 IsGrounded = false,
                 CoyoteTicksRemaining = 0,
@@ -97,13 +142,63 @@ namespace Blast.Game
                 // 첫 입력 전까지 정의되지 않습니다.
                 FacingDirection = 1
             };
-            _previousState = _currentState;
+        }
+
+        private void HandlePlayerSpawned(PlayerHandle player)
+        {
+            // 스폰 시점에 한 번만 찾습니다. 매 프레임 GetComponent 를 부르면 안 됩니다.
+            PlayerPresenter presenter = player.GameObject.GetComponent<PlayerPresenter>();
+            if (presenter == null)
+            {
+                Debug.LogWarning(
+                    "스폰된 플레이어에 PlayerPresenter 가 없습니다. 프리팹 구성을 확인하세요.",
+                    player.GameObject);
+                return;
+            }
+
+            PlayerState spawnState = CreateSpawnState(player.SpawnIndex);
+
+            if (player.IsLocalOwner)
+            {
+                _localPlayer = player;
+                _localPresenter = presenter;
+
+                // 시뮬레이션 상태를 스폰 위치로 되돌립니다. 틱 카운터는 건드리지
+                // 않습니다. 틱은 월드 전체의 것이지 플레이어의 것이 아닙니다.
+                _currentState = spawnState;
+                _previousState = spawnState;
+                return;
+            }
+
+            // 원격 캐릭터는 이번 이슈에서 움직이지 않습니다. 한 번만 제자리에 놓습니다.
+            // 다음 이슈에서 이 자리에 스냅샷 수신과 보간이 들어갑니다.
+            presenter.SetTuning(CurrentTuning);
+            presenter.Render(spawnState, spawnState, 0f);
+        }
+
+        private void HandlePlayerDespawned(PlayerHandle player)
+        {
+            if (_localPlayer != player)
+            {
+                return;
+            }
+
+            _localPlayer = null;
+            _localPresenter = null;
         }
 
         private void Update()
         {
             // 계층: Input. 에지 입력 래치는 프레임 단위로 걷어야 합니다.
             _inputSource.Poll();
+
+            // 접속 전에는 구동할 대상이 없습니다. 누산기를 돌리지 않으므로 틱도
+            // 진행하지 않습니다. 3주차에 서버 틱과 맞추면서 이 부분이 바뀝니다.
+            if (_localPlayer == null)
+            {
+                _lastFrameTickCount = 0;
+                return;
+            }
 
             // 벽시계를 읽는 것은 합성 루트의 몫입니다.
             // 누산 로직 자체는 FixedTickAccumulator 가 들고 있어 테스트가 가능합니다.
@@ -134,11 +229,11 @@ namespace Blast.Game
             _lastFrameTickCount = ticksThisFrame;
 
             // 계층: Presentation. 누산기에 남은 시간이 곧 다음 틱까지의 진행률입니다.
-            if (_presenter != null)
+            if (_localPresenter != null)
             {
                 // 기즈모가 실제 충돌 박스를 그리도록 이번 프레임 튜닝을 넘깁니다.
-                _presenter.SetTuning(tuning);
-                _presenter.Render(_previousState, _currentState, _accumulator.Alpha);
+                _localPresenter.SetTuning(tuning);
+                _localPresenter.Render(_previousState, _currentState, _accumulator.Alpha);
             }
         }
     }
