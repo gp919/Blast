@@ -1,6 +1,14 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// 유니티 워크플로 체험용 코드입니다. 삭제하지 마세요.
+//
+// 이 프로젝트는 Rigidbody2D 기반 이동을 금지하지만 이 파일만 예외로 남겨둡니다.
+// 1주차 E에서 만들 BoxCast 커스텀 kinematic 컨트롤러와 나란히 놓고
+// 무엇이 왜 달라지는지 보여주는 비교 자료로 쓸 예정입니다.
+// 결정 근거는 docs/project_context.md 5번 저장소 특이사항 참조.
+//
+// 이 파일은 Assembly-CSharp 에 속하며 Assets/Scripts 의 계층 규칙을 따르지 않습니다.
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 public class Player : MonoBehaviour

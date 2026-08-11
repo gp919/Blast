@@ -123,13 +123,31 @@ Input        -> Core
 > **작업하면서 직접 갱신하세요.** 새 챗을 열 때 현재 위치를 파악하는 근거가 됩니다.
 
 **현재 주차**: 1주차
-**현재 작업 항목**: (예: 1주차 E — BoxCast 커스텀 컨트롤러)
+**현재 작업 항목**: 1주차 E — BoxCast 커스텀 컨트롤러 + 고정 틱 루프 (착수 전)
 
 ### 완료
-- (없음)
+- 1주차 A 환경 셋업 — Unity 6000.5.6f1, Force Text, Visible Meta Files, Git LFS, VS Code
+- 1주차 C-1 어셈블리 분리 — `Assets/Scripts/` 하위 asmdef 5개. 참조는 이름 참조로 작성
+- 계층 검증 스크립트 `tools/check-layering.ps1` — asmdef 참조 방향 + Simulation 금지 심볼
+- `.editorconfig` — 코드 컨벤션을 Roslyn 진단으로 강제
 
 ### 진행 중
 - (없음)
+
+### 저장소 특이사항
+
+새 챗에서 이 저장소를 처음 보면 오해할 만한 것들입니다.
+
+- **`Assets/Player.cs` 를 삭제하지 마세요.** Rigidbody2D 기반 이동은 이 프로젝트에서
+  금지된 방식이지만, 유니티 워크플로 체험용으로 만든 이 파일만 의도적으로 남깁니다.
+  1주차 E의 BoxCast 커스텀 컨트롤러와 비교하는 자료로 쓸 예정입니다.
+  Assembly-CSharp 에 속하며 `Assets/Scripts` 의 계층 규칙 적용 대상이 아닙니다.
+- **Enter Play Mode Options 의 Domain Reload 를 켰습니다** (2026-08-11 변경).
+  `EditorSettings.asset` 의 `m_EnterPlayModeOptions` 를 1 에서 0 으로 바꿨습니다.
+  이전 값 1 은 DisableDomainReload 라 Play 진입은 빨랐지만 static 필드가 Play 마다
+  초기화되지 않았습니다. 틱 카운터나 싱글턴이 이전 Play 의 값을 물고 있으면 예측과
+  재조정 디버깅이 불가능해집니다. Play 진입 속도를 되찾고 싶어지면 static 을 먼저
+  제거하고 다시 끄세요.
 
 ### 막힌 지점
 
