@@ -58,6 +58,56 @@ AI는 도구로 활용합니다. 다만 **작업자가 설명하지 못하는 �
 
 ---
 
+## Git 운용
+
+상세 규칙은 `docs/project_context.md` 10번 참조.
+
+### Claude Code가 하는 것
+
+- `gh` CLI로 이슈, 마일스톤 생성 및 조회
+- 브랜치 생성 및 전환 (`git switch -c`, `git switch`)
+- 상태 확인 (`git status`, `git diff`, `git log`, `git branch`)
+
+### Claude Code가 하지 않는 것
+
+**아래 명령은 절대 실행하지 마세요.** 작업자가 직접 수행합니다.
+
+- `git add`, `git commit`, `git push`
+- `git merge`, `git rebase`, `git reset`, `git restore`, `git checkout -- <file>`
+- `git stash`
+- `gh pr create`, `gh pr merge`
+- 이슈 종료 (`gh issue close`)
+
+커밋할 시점이 되면 **커밋 메시지 초안만 제시**하고 멈추세요.
+직접 실행하거나, 실행하겠다고 제안하지 마세요.
+
+```
+작업 완료. 아래로 커밋하시면 됩니다.
+
+feat(sim): 수평 이동 캐스트 및 충돌 보정 구현
+
+Refs #12
+
+변경 파일:
+  Assets/Scripts/Simulation/CharacterController2D.cs (+84)
+  Assets/Scripts/Simulation/CharacterController2D.cs.meta (신규)
+  Assets/Scripts/Core/CastResult.cs (+22)
+```
+
+`.cs` 신규 생성 시 `.cs.meta`는 유니티 에디터가 포커스를 받아야 만들어집니다.
+**에디터를 한 번 활성화한 뒤 커밋하도록 안내**하세요. meta 누락은 GUID 참조를 깨뜨립니다.
+
+### 이슈와 브랜치
+
+- 작업 시작 시 대응 이슈가 없으면 **먼저 이슈 생성을 제안**하고 확인받으세요
+- 이슈 제목과 본문 초안을 보여준 뒤 승인받고 `gh issue create` 실행
+- 이슈 생성 후 브랜치까지 이어서 생성: `<유형>/<이슈번호>-<짧은-영문-설명>`
+- 브랜치 생성 전 **현재 브랜치가 `main`이고 working tree가 clean한지 확인**.
+  아니면 작업자에게 알리고 중단하세요
+- 마일스톤은 현재 + 다음 것까지만. 미리 대량 생성 금지
+
+---
+
 ## 코드 컨벤션
 
 - 클래스, 메서드, 프로퍼티, 상수: PascalCase
