@@ -16,9 +16,24 @@ namespace Blast.Presentation
         // 둘을 맞추는 방향은 스프라이트 쪽입니다. 시뮬레이션이 진실이고 그림이 따라옵니다.
         [SerializeField] private bool _drawCollisionBox = true;
 
+        // 합성 루트가 매 프레임 밀어넣습니다. 기즈모 그리기 외에는 쓰지 않습니다.
+        // [SerializeField] 가 아니라 런타임 주입인 이유는 값의 출처가 애셋 하나로
+        // 유지되어야 하기 때문입니다. 여기 직렬화하면 프리팹마다 다른 박스 크기가
+        // 생기고, 기즈모가 시뮬레이션의 진실이 아니라 거짓말을 하게 됩니다.
+        //
+        // Play 중이 아니면 주입해줄 드라이버가 없으므로 기본값으로 그립니다.
+        // 애셋에서 박스 크기를 바꿨다면 편집 중 기즈모는 그것을 반영하지 못합니다.
+        // Play 를 눌러 확인하세요.
+        private CharacterTuning _tuning = CharacterTuning.Default;
+
         private void Reset()
         {
             _spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        }
+
+        public void SetTuning(in CharacterTuning tuning)
+        {
+            _tuning = tuning;
         }
 
         public void Render(in PlayerState previous, in PlayerState current, float alpha)
@@ -48,8 +63,11 @@ namespace Blast.Presentation
 
             // 초록: 시뮬레이션이 실제로 쓰는 충돌 박스입니다.
             // Position 은 캐릭터의 중심이므로 박스도 중심 기준입니다.
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireCube(transform.position, CharacterController2D.BoxSize);
+            //
+            // 편집 중에는 튜닝을 주입해줄 드라이버가 없어 기본값을 그립니다.
+            // 실제 값과 다를 수 있으므로 색을 어둡게 해서 구분합니다.
+            Gizmos.color = Application.isPlaying ? Color.green : new Color(0f, 0.5f, 0f);
+            Gizmos.DrawWireCube(transform.position, _tuning.BoxSize);
 
             // 노랑: 스프라이트가 실제로 차지하는 크기입니다.
             // 초록보다 조금 큰 정도가 정상입니다. 팔이나 머리카락은 충돌하지 않아야 합니다.
