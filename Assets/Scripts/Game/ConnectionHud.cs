@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using Blast.Network;
 using UnityEngine;
@@ -17,11 +18,17 @@ namespace Blast.Game
     [DisallowMultipleComponent]
     public sealed class ConnectionHud : MonoBehaviour
     {
-        private const float PanelWidth = 220f;
+        private const float PanelWidth = 240f;
+        private const float PanelHeight = 220f;
         private const float PanelMargin = 8f;
 
         // 2주차 문제 상황 영상 촬영 때 화면을 가리지 않도록 끌 수 있게 둡니다.
         private const KeyCode ToggleKey = KeyCode.F1;
+
+        // 소유권 검사를 눈으로 확인하기 위한 키입니다. 남의 플레이어에 입력을
+        // 보내면 NGO 가 거부하고 경고를 남깁니다. 이것이 서버 권위의 최소 방어선이라
+        // 동작을 한 번은 직접 보고 넘어가야 합니다.
+        private const KeyCode OwnershipTestKey = KeyCode.F2;
 
         private readonly ConnectionLauncher _launcher = new ConnectionLauncher();
         private readonly StringBuilder _statusBuilder = new StringBuilder(64);
@@ -66,13 +73,18 @@ namespace Blast.Game
                 _isVisible = !_isVisible;
                 current.Use();
             }
+            else if (current.type == EventType.KeyDown && current.keyCode == OwnershipTestKey)
+            {
+                TrySendInputToRemotePlayer();
+                current.Use();
+            }
 
             if (!_isVisible)
             {
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(PanelMargin, PanelMargin, PanelWidth, 200f), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(PanelMargin, PanelMargin, PanelWidth, PanelHeight), GUI.skin.box);
 
             if (_launcher.IsRunning)
             {
@@ -97,6 +109,28 @@ namespace Blast.Game
             }
 
             GUILayout.EndArea();
+        }
+
+        // 남의 플레이어에 입력을 보내 봅니다. ServerRpc 가 RequireOwnership 이라
+        // 서버에 도달하기 전에 NGO 가 막고 콘솔에 경고를 남깁니다.
+        // 캐릭터가 움직이지 않는 것이 정상 동작입니다.
+        private static void TrySendInputToRemotePlayer()
+        {
+            IReadOnlyList<PlayerHandle> players = PlayerRegistry.Players;
+            for (int i = 0; i < players.Count; i++)
+            {
+                PlayerHandle player = players[i];
+                if (player.IsLocalOwner)
+                {
+                    continue;
+                }
+
+                Debug.Log($"[Net] 소유권 검사 테스트: ownerId {player.OwnerId} 의 플레이어에 입력 전송 시도");
+                player.SendInput(default);
+                return;
+            }
+
+            Debug.Log("[Net] 소유권 검사 테스트: 남의 플레이어가 없습니다. 접속 후 다시 시도하세요.");
         }
 
         // 상태 변화 시에만 호출됩니다. OnGUI 안에서 문자열을 조립하면 초당 수백 번
@@ -142,7 +176,7 @@ namespace Blast.Game
                 _statusBuilder.Append(localPlayer != null ? localPlayer.OwnerId.ToString() : "없음");
             }
 
-            _statusBuilder.Append("\nF1 표시 전환");
+            _statusBuilder.Append("\nF1 표시 전환  F2 소유권 테스트");
 
             _statusText = _statusBuilder.ToString();
         }
