@@ -30,6 +30,10 @@ namespace Blast.Game
         // 동작을 한 번은 직접 보고 넘어가야 합니다.
         private const KeyCode OwnershipTestKey = KeyCode.F2;
 
+        // 서버 권위와 클라 권위를 같은 세션 안에서 번갈아 보기 위한 키입니다.
+        // 2주차 C 비교 촬영에서 한 번에 두 조건을 담기 위한 개발 기능입니다.
+        private const KeyCode AuthorityToggleKey = KeyCode.F3;
+
         private readonly ConnectionLauncher _launcher = new ConnectionLauncher();
         private readonly StringBuilder _statusBuilder = new StringBuilder(64);
 
@@ -76,6 +80,11 @@ namespace Blast.Game
             else if (current.type == EventType.KeyDown && current.keyCode == OwnershipTestKey)
             {
                 TrySendInputToRemotePlayer();
+                current.Use();
+            }
+            else if (current.type == EventType.KeyDown && current.keyCode == AuthorityToggleKey)
+            {
+                RequestAuthorityToggle();
                 current.Use();
             }
 
@@ -133,6 +142,21 @@ namespace Blast.Game
             Debug.Log("[Net] 소유권 검사 테스트: 남의 플레이어가 없습니다. 접속 후 다시 시도하세요.");
         }
 
+        // 권한 모드 전환을 서버에 요청합니다. 요청 자체는 아무 플레이어를 통해 보내도
+        // 되지만, 소유하지 않은 플레이어로 보내면 Everyone 권한이라 통과하긴 해도
+        // 의도가 흐려집니다. 로컬 플레이어를 씁니다.
+        private static void RequestAuthorityToggle()
+        {
+            PlayerHandle localPlayer = PlayerRegistry.LocalPlayer;
+            if (localPlayer == null)
+            {
+                Debug.Log("[Net] 권한 모드 전환: 로컬 플레이어가 없습니다. 접속 후 다시 시도하세요.");
+                return;
+            }
+
+            localPlayer.RequestAuthorityMode(!localPlayer.IsClientAuthority);
+        }
+
         // 상태 변화 시에만 호출됩니다. OnGUI 안에서 문자열을 조립하면 초당 수백 번
         // 같은 문자열을 새로 만들게 됩니다.
         private void RebuildStatusText()
@@ -176,7 +200,7 @@ namespace Blast.Game
                 _statusBuilder.Append(localPlayer != null ? localPlayer.OwnerId.ToString() : "없음");
             }
 
-            _statusBuilder.Append("\nF1 표시 전환  F2 소유권 테스트");
+            _statusBuilder.Append("\nF1 표시  F2 소유권  F3 권한 전환");
 
             _statusText = _statusBuilder.ToString();
         }

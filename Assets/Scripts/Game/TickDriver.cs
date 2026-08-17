@@ -38,6 +38,10 @@ namespace Blast.Game
             public PlayerHandle Handle;
             public PlayerPresenter Presenter;
             public PlayerState State;
+
+            // 직전 틱의 상태입니다. 이 피어가 직접 시뮬레이션하는 캐릭터를
+            // 프레임레이트와 무관하게 그리기 위한 것이며, 네트워크와 무관합니다.
+            public PlayerState PreviousState;
         }
 
         // 플레이어는 씬에 미리 있지 않고 접속 후 NGO 가 스폰합니다. 그래서 프리젠터를
@@ -91,6 +95,30 @@ namespace Blast.Game
         public bool IsServerPeer => NetworkPeer.IsServer;
         public uint LastSentInputTick => _lastSentInputTick;
 
+        // 현재 권한 모드입니다. 서버가 방송하므로 전 피어가 같은 값을 봅니다.
+        public bool IsClientAuthorityMode =>
+            _localEntry != null && _localEntry.Handle.IsClientAuthority;
+
+        // 이 피어가 이번 프레임에 실제로 시뮬레이션하는 캐릭터 수입니다.
+        // 서버 권위면 서버에서 전원, 클라 권위면 각 피어에서 1 이 나옵니다.
+        public int SimulatedHereCount
+        {
+            get
+            {
+                bool isServer = NetworkPeer.IsServer;
+                int count = 0;
+                for (int i = 0; i < _entries.Count; i++)
+                {
+                    if (IsSimulatedHere(_entries[i], isServer))
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
+        }
+
         // 서버에서만 갱신됩니다. 클라이언트에서는 0 에 머뭅니다.
         // 서버에서 이 값이 멈춰 있으면 입력 RPC 가 도달하지 못하고 있다는 뜻입니다.
         public uint LocalReceivedInputTick =>
@@ -99,8 +127,8 @@ namespace Blast.Game
         public PlayerState CurrentState =>
             _localEntry != null ? _localEntry.State : default;
 
-        // 보간을 쓰지 않게 되었지만 값 자체는 누산기 동작 확인에 여전히 유용합니다.
-        // 3주차 스냅샷 보간이 들어오면 다시 렌더 경로에서 쓰입니다.
+        // 이 피어가 직접 시뮬레이션하는 캐릭터의 렌더 보간에 쓰입니다.
+        // 수신 상태를 그리는 경로에는 쓰이지 않습니다. 둘은 다른 문제를 풉니다.
         public float Alpha => _accumulator.Alpha;
         public float AccumulatorRemainder => _accumulator.Remainder;
 
@@ -193,11 +221,13 @@ namespace Blast.Game
                 return;
             }
 
+            PlayerState spawnState = CreateSpawnState(player.SpawnIndex);
             PlayerSimEntry entry = new PlayerSimEntry
             {
                 Handle = player,
                 Presenter = presenter,
-                State = CreateSpawnState(player.SpawnIndex)
+                State = spawnState,
+                PreviousState = spawnState
             };
 
             InsertOrdered(entry);
@@ -284,25 +314,33 @@ namespace Blast.Game
             // 재조정 루프가 같은 입력에 다른 결과를 내게 됩니다.
             for (int i = 0; i < ticksThisFrame; i++)
             {
-                // 계층: Input -> Network. 소유 플레이어의 입력을 서버로 보냅니다.
-                // Host 에서는 이 호출이 곧바로 로컬 실행되어 지연이 0 입니다.
+                // 계층: Input. 이번 틱의 입력을 한 번만 뽑습니다.
+                InputCommand localInput = default;
+                bool hasLocalInput = false;
+
                 if (_localEntry != null)
                 {
-                    InputCommand input = _inputSource.Sample(_tick);
+                    localInput = _inputSource.Sample(_tick);
 
                     // 이 틱이 에지 입력을 가져갔으므로 래치를 지웁니다.
                     // 한 프레임에 틱이 여러 번 돌아도 점프는 첫 틱에서만 발동합니다.
                     _inputSource.ConsumeEdges();
+                    hasLocalInput = true;
 
-                    _localEntry.Handle.SendInput(input);
-                    _lastSentInputTick = _tick;
+                    // 계층: Network. 서버 권위에서만 입력을 보냅니다.
+                    // 클라 권위에서는 여기서 시뮬레이션하고 결과 위치를 보내므로
+                    // 입력까지 보내면 같은 것을 두 번 보내는 셈입니다.
+                    //
+                    // Host 에서는 이 호출이 곧바로 로컬 실행되어 지연이 0 입니다.
+                    if (!_localEntry.Handle.IsClientAuthority)
+                    {
+                        _localEntry.Handle.SendInput(localInput);
+                        _lastSentInputTick = _tick;
+                    }
                 }
 
-                // 계층: Simulation. 서버에서만 돕니다.
-                if (isServer)
-                {
-                    StepServer(tuning);
-                }
+                // 계층: Simulation.
+                StepSimulatedHere(tuning, isServer, localInput, hasLocalInput);
 
                 _tick++;
             }
@@ -311,60 +349,121 @@ namespace Blast.Game
 
             // 계층: Presentation. 틱이 한 번도 돌지 않은 프레임에도 그립니다.
             // 서버 값은 우리 틱과 무관하게 30Hz 로 도착하기 때문입니다.
-            RenderAll(tuning, isServer);
+            RenderAll(tuning, isServer, _accumulator.Alpha);
         }
 
-        private void StepServer(in CharacterTuning tuning)
+        // 이 플레이어를 이 피어가 시뮬레이션하는가.
+        //
+        // 서버 권위: 서버만 돈다. 소유 클라이언트도 자기 캐릭터를 돌리지 않는다
+        // 클라 권위: 소유 클라이언트만 돈다. 서버조차 남의 캐릭터를 돌리지 않는다
+        //
+        // 두 모드가 정확히 하나의 시뮬레이터를 지정한다는 것이 요점입니다. 둘이 되면
+        // 서로 위치를 덮어쓰며 캐릭터가 떨고, 영이 되면 아무도 안 움직입니다.
+        private static bool IsSimulatedHere(PlayerSimEntry entry, bool isServer)
+        {
+            return entry.Handle.IsClientAuthority ? entry.Handle.IsLocalOwner : isServer;
+        }
+
+        private void StepSimulatedHere(
+            in CharacterTuning tuning, bool isServer, in InputCommand localInput, bool hasLocalInput)
         {
             for (int i = 0; i < _entries.Count; i++)
             {
                 PlayerSimEntry entry = _entries[i];
-
-                // 입력이 한 번도 도착하지 않았으면 아무것도 누르지 않은 것으로 봅니다.
-                // 중력과 관성은 그대로 적용되어야 하므로 시뮬레이션은 계속 돕니다.
-                if (!entry.Handle.TryConsumeInput(out InputCommand input))
+                if (!IsSimulatedHere(entry, isServer))
                 {
+                    continue;
+                }
+
+                InputCommand input;
+                if (entry.Handle.IsClientAuthority)
+                {
+                    // 클라 권위에서는 자기 캐릭터만 돌리므로 입력이 이미 손에 있습니다.
+                    // 네트워크를 타지 않아 지연이 0 이고, 그것이 이 모드의 전부입니다.
+                    if (!hasLocalInput)
+                    {
+                        continue;
+                    }
+
+                    input = localInput;
+                }
+                else if (!entry.Handle.TryConsumeInput(out input))
+                {
+                    // 입력이 한 번도 도착하지 않았으면 아무것도 누르지 않은 것으로 봅니다.
+                    // 중력과 관성은 그대로 적용되어야 하므로 시뮬레이션은 계속 돕니다.
                     input = default;
                 }
 
                 // 클라이언트가 붙여 보낸 틱 번호는 지금 쓰지 않습니다. 입력을 정렬해
                 // 보관하는 버퍼가 있어야 의미가 생기는데 그건 3주차입니다.
-                // 지금은 서버 틱으로 덮어 서버 시간축 위에서만 시뮬레이션합니다.
+                // 지금은 자기 틱으로 덮어 한 시간축 위에서만 시뮬레이션합니다.
                 input.Tick = _tick;
 
+                // 한 프레임에 틱이 여러 번 돌면 마지막 틱의 직전 상태가 남습니다.
+                // 알파 보간이 그리는 구간이 곧 그 마지막 틱 구간입니다.
+                entry.PreviousState = entry.State;
                 entry.State = SimulationWorld.Step(
                     entry.State, input, tuning,
                     SimulationConstants.FixedDeltaTime, _groundLayerMask);
 
-                entry.Handle.PublishState(entry.State);
+                // 서버는 발행하고, 클라 권위의 소유자는 통보합니다.
+                // 통보받은 서버는 검증 없이 그대로 발행합니다.
+                if (entry.Handle.IsClientAuthority)
+                {
+                    entry.Handle.SubmitState(entry.State);
+                }
+                else
+                {
+                    entry.Handle.PublishState(entry.State);
+                }
             }
         }
 
-        private void RenderAll(in CharacterTuning tuning, bool isServer)
+        private void RenderAll(in CharacterTuning tuning, bool isServer, float alpha)
         {
             for (int i = 0; i < _entries.Count; i++)
             {
                 PlayerSimEntry entry = _entries[i];
+                bool simulatedHere = IsSimulatedHere(entry, isServer);
 
-                if (!isServer && entry.Handle.HasNetState)
+                if (!simulatedHere && entry.Handle.HasNetState)
                 {
-                    // 클라이언트에게는 수신값이 곧 상태입니다. 속도나 접지 같은
+                    // 내가 안 돌리는 캐릭터는 수신값이 곧 상태입니다. 속도나 접지 같은
                     // 나머지 필드는 받지 않으므로 갱신되지 않습니다. 그리는 데
                     // 쓰이지 않아 문제되지 않지만, 인스펙터에서 그 값들을 볼 때는
-                    // 서버에서 봐야 한다는 뜻이기도 합니다.
+                    // 시뮬레이션하는 쪽에서 봐야 한다는 뜻이기도 합니다.
+                    //
+                    // 권한 모드를 전환하면 여기서 넘겨받은 상태로 시뮬레이션이
+                    // 시작됩니다. 속도가 0 으로 초기화되므로 낙하 중에 전환하면
+                    // 한 번 튑니다. 비교 촬영용 기능이라 그대로 둡니다.
                     PlayerState received = entry.State;
                     received.Position = entry.Handle.NetPosition;
                     received.FacingDirection = entry.Handle.NetFacing;
                     entry.State = received;
+
+                    // 권한 모드가 바뀌어 이 캐릭터를 갑자기 시뮬레이션하게 될 때
+                    // 직전 상태가 옛날 값이면 한 프레임 크게 튑니다.
+                    entry.PreviousState = received;
                 }
 
                 // 기즈모가 실제 충돌 박스를 그리도록 이번 프레임 튜닝을 넘깁니다.
                 entry.Presenter.SetTuning(tuning);
 
-                // 같은 상태를 두 번 넘겨 보간을 무력화합니다. 30Hz 로 도착한 위치가
-                // 그대로 계단처럼 보입니다. 의도된 결함이고, 3주차 스냅샷 보간이
-                // 정확히 이 자리에 들어옵니다.
-                entry.Presenter.Render(entry.State, entry.State, 0f);
+                if (simulatedHere)
+                {
+                    // 틱 알파 보간입니다. 스냅샷 보간과 혼동하면 안 됩니다.
+                    // 이쪽은 60Hz 틱과 화면 프레임레이트가 맞지 않는 문제를 푸는 것이고,
+                    // 네트워크와 무관합니다. 이것까지 없애면 한 프레임에 틱이
+                    // 1 번, 2 번, 0 번 도는 편차가 그대로 화면에 떨림으로 나옵니다.
+                    entry.Presenter.Render(entry.PreviousState, entry.State, alpha);
+                }
+                else
+                {
+                    // 이쪽이 이번 이슈에서 일부러 비워둔 자리입니다. 30Hz 로 도착한
+                    // 위치를 보간 없이 그대로 그립니다. 같은 상태를 두 번 넘겨
+                    // 알파를 무의미하게 만듭니다. 3주차 스냅샷 보간이 여기 들어옵니다.
+                    entry.Presenter.Render(entry.State, entry.State, 0f);
+                }
             }
         }
     }

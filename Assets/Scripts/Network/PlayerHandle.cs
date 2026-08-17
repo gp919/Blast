@@ -85,6 +85,26 @@ namespace Blast.Network
             _link.PublishState(state.Position, state.FacingDirection);
         }
 
+        // 클라 권위 모드에서 소유 클라이언트가 부릅니다.
+        // 서버는 이 값을 검증하지 않습니다. 벽을 통과한 위치를 보내도 그대로 통과합니다.
+        public void SubmitState(in PlayerState state)
+        {
+            _link.SubmitState(state.Position, state.FacingDirection);
+        }
+
+        // 이 플레이어를 누가 시뮬레이션하는가. 서버가 방송하므로 전 피어가 같은 값을
+        // 봅니다. 피어마다 다르면 둘이 동시에 시뮬레이션하며 서로 위치를 덮어씁니다.
+        //
+        // 값을 복사해두지 않고 매번 물어보는 이유는 NetworkPeer 와 같습니다.
+        // 갱신 지점이 늘면 어긋난 상태로 프레임이 도는 경로가 생깁니다.
+        public bool IsClientAuthority => _link.IsClientAuthority;
+
+        // 비교 촬영용 개발 기능입니다. 요청은 서버로 가고 서버가 전원에게 방송합니다.
+        public void RequestAuthorityMode(bool clientAuthority)
+        {
+            _link.RequestAuthorityMode(clientAuthority);
+        }
+
         internal void ApplyNetState(Vector2 position, sbyte facing)
         {
             NetPosition = position;
