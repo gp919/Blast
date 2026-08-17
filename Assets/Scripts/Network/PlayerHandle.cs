@@ -1,3 +1,4 @@
+using Blast.Core;
 using UnityEngine;
 
 namespace Blast.Network
@@ -16,14 +17,24 @@ namespace Blast.Network
     //
     // 참고: asmdef 참조 방향 검사로는 이 문제가 잡히지 않습니다. 참조 그래프는
     // 정상이었고 깨진 것은 컴파일이었습니다.
+    //
+    // 식별자만 들던 것에서 상태 운반체로 커졌습니다. 의도한 방향입니다.
+    // 3주차 스냅샷 링버퍼도 결국 플레이어별로 붙어야 하고, 그 자리가 여기입니다.
     public sealed class PlayerHandle
     {
-        public PlayerHandle(GameObject gameObject, ulong ownerId, bool isLocalOwner, int spawnIndex)
+        private readonly IPlayerLink _link;
+
+        // 생성자가 internal 입니다. 핸들을 만드는 것은 NGO 스폰 경로뿐이어야 합니다.
+        // 상위 계층이 임의로 만들 수 있으면 링크가 없는 핸들이 레지스트리에 섞입니다.
+        internal PlayerHandle(
+            GameObject gameObject, ulong ownerId, bool isLocalOwner, int spawnIndex, IPlayerLink link)
         {
             GameObject = gameObject;
             OwnerId = ownerId;
             IsLocalOwner = isLocalOwner;
             SpawnIndex = spawnIndex;
+            _link = link;
+            NetFacing = 1;
         }
 
         // 상위 계층이 여기서 PlayerPresenter 를 찾습니다. Blast.Network 는
@@ -43,5 +54,62 @@ namespace Blast.Network
         // 0 과 1 이 나오므로 지금은 이대로 쓰고, 다중 플레이어 구조를 확정할 때
         // 서버가 부여하는 조밀한 인덱스로 교체합니다.
         public int SpawnIndex { get; }
+
+        // 서버가 발행한 최신 상태입니다. 클라이언트에게는 이것이 유일한 진실입니다.
+        // 보간도 예측도 없이 도착한 값을 그대로 그립니다. 이번 이슈의 의도된 결함입니다.
+        public Vector2 NetPosition { get; private set; }
+        public sbyte NetFacing { get; private set; }
+
+        // 한 번이라도 서버 값을 받았는가. 받기 전에는 결정적 스폰 위치를 씁니다.
+        public bool HasNetState { get; private set; }
+
+        // 관측용입니다. 서버가 마지막으로 받은 입력의 클라이언트 틱 번호입니다.
+        // 이 값이 멈춰 있으면 입력이 서버에 도달하지 않고 있다는 뜻입니다.
+        public uint LastReceivedInputTick => _link.LastReceivedInputTick;
+
+        // 소유 클라이언트에서만 의미가 있습니다. 남의 플레이어에 보내면 NGO 가
+        // 소유권 검사에서 거부하고 경고를 남깁니다.
+        public void SendInput(in InputCommand command)
+        {
+            _link.SubmitInput(command);
+        }
+
+        public bool TryConsumeInput(out InputCommand command)
+        {
+            return _link.TryConsumeInput(out command);
+        }
+
+        // 서버에서만 호출합니다. 클라이언트가 부르면 NGO 가 쓰기 권한 위반으로 막습니다.
+        public void PublishState(in PlayerState state)
+        {
+            _link.PublishState(state.Position, state.FacingDirection);
+        }
+
+        // 클라 권위 모드에서 소유 클라이언트가 부릅니다.
+        // 서버는 이 값을 검증하지 않습니다. 벽을 통과한 위치를 보내도 그대로 통과합니다.
+        public void SubmitState(in PlayerState state)
+        {
+            _link.SubmitState(state.Position, state.FacingDirection);
+        }
+
+        // 이 플레이어를 누가 시뮬레이션하는가. 서버가 방송하므로 전 피어가 같은 값을
+        // 봅니다. 피어마다 다르면 둘이 동시에 시뮬레이션하며 서로 위치를 덮어씁니다.
+        //
+        // 값을 복사해두지 않고 매번 물어보는 이유는 NetworkPeer 와 같습니다.
+        // 갱신 지점이 늘면 어긋난 상태로 프레임이 도는 경로가 생깁니다.
+        public bool IsClientAuthority => _link.IsClientAuthority;
+
+        // 비교 촬영용 개발 기능입니다. 요청은 서버로 가고 서버가 전원에게 방송합니다.
+        public void RequestAuthorityMode(bool clientAuthority)
+        {
+            _link.RequestAuthorityMode(clientAuthority);
+        }
+
+        internal void ApplyNetState(Vector2 position, sbyte facing)
+        {
+            NetPosition = position;
+            NetFacing = facing;
+            HasNetState = true;
+        }
     }
 }

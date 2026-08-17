@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using Blast.Network;
 using UnityEngine;
@@ -17,11 +18,21 @@ namespace Blast.Game
     [DisallowMultipleComponent]
     public sealed class ConnectionHud : MonoBehaviour
     {
-        private const float PanelWidth = 220f;
+        private const float PanelWidth = 240f;
+        private const float PanelHeight = 220f;
         private const float PanelMargin = 8f;
 
         // 2주차 문제 상황 영상 촬영 때 화면을 가리지 않도록 끌 수 있게 둡니다.
         private const KeyCode ToggleKey = KeyCode.F1;
+
+        // 소유권 검사를 눈으로 확인하기 위한 키입니다. 남의 플레이어에 입력을
+        // 보내면 NGO 가 거부하고 경고를 남깁니다. 이것이 서버 권위의 최소 방어선이라
+        // 동작을 한 번은 직접 보고 넘어가야 합니다.
+        private const KeyCode OwnershipTestKey = KeyCode.F2;
+
+        // 서버 권위와 클라 권위를 같은 세션 안에서 번갈아 보기 위한 키입니다.
+        // 2주차 C 비교 촬영에서 한 번에 두 조건을 담기 위한 개발 기능입니다.
+        private const KeyCode AuthorityToggleKey = KeyCode.F3;
 
         private readonly ConnectionLauncher _launcher = new ConnectionLauncher();
         private readonly StringBuilder _statusBuilder = new StringBuilder(64);
@@ -66,13 +77,23 @@ namespace Blast.Game
                 _isVisible = !_isVisible;
                 current.Use();
             }
+            else if (current.type == EventType.KeyDown && current.keyCode == OwnershipTestKey)
+            {
+                TrySendInputToRemotePlayer();
+                current.Use();
+            }
+            else if (current.type == EventType.KeyDown && current.keyCode == AuthorityToggleKey)
+            {
+                RequestAuthorityToggle();
+                current.Use();
+            }
 
             if (!_isVisible)
             {
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(PanelMargin, PanelMargin, PanelWidth, 200f), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(PanelMargin, PanelMargin, PanelWidth, PanelHeight), GUI.skin.box);
 
             if (_launcher.IsRunning)
             {
@@ -97,6 +118,43 @@ namespace Blast.Game
             }
 
             GUILayout.EndArea();
+        }
+
+        // 남의 플레이어에 입력을 보내 봅니다. ServerRpc 가 RequireOwnership 이라
+        // 서버에 도달하기 전에 NGO 가 막고 콘솔에 경고를 남깁니다.
+        // 캐릭터가 움직이지 않는 것이 정상 동작입니다.
+        private static void TrySendInputToRemotePlayer()
+        {
+            IReadOnlyList<PlayerHandle> players = PlayerRegistry.Players;
+            for (int i = 0; i < players.Count; i++)
+            {
+                PlayerHandle player = players[i];
+                if (player.IsLocalOwner)
+                {
+                    continue;
+                }
+
+                Debug.Log($"[Net] 소유권 검사 테스트: ownerId {player.OwnerId} 의 플레이어에 입력 전송 시도");
+                player.SendInput(default);
+                return;
+            }
+
+            Debug.Log("[Net] 소유권 검사 테스트: 남의 플레이어가 없습니다. 접속 후 다시 시도하세요.");
+        }
+
+        // 권한 모드 전환을 서버에 요청합니다. 요청 자체는 아무 플레이어를 통해 보내도
+        // 되지만, 소유하지 않은 플레이어로 보내면 Everyone 권한이라 통과하긴 해도
+        // 의도가 흐려집니다. 로컬 플레이어를 씁니다.
+        private static void RequestAuthorityToggle()
+        {
+            PlayerHandle localPlayer = PlayerRegistry.LocalPlayer;
+            if (localPlayer == null)
+            {
+                Debug.Log("[Net] 권한 모드 전환: 로컬 플레이어가 없습니다. 접속 후 다시 시도하세요.");
+                return;
+            }
+
+            localPlayer.RequestAuthorityMode(!localPlayer.IsClientAuthority);
         }
 
         // 상태 변화 시에만 호출됩니다. OnGUI 안에서 문자열을 조립하면 초당 수백 번
@@ -142,7 +200,7 @@ namespace Blast.Game
                 _statusBuilder.Append(localPlayer != null ? localPlayer.OwnerId.ToString() : "없음");
             }
 
-            _statusBuilder.Append("\nF1 표시 전환");
+            _statusBuilder.Append("\nF1 표시  F2 소유권  F3 권한 전환");
 
             _statusText = _statusBuilder.ToString();
         }
