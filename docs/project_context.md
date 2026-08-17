@@ -14,6 +14,8 @@
 | `CLAUDE.md` | AI 협업 규칙, 코드 컨벤션, Git 운용, 명령어 |
 | `docs/checklist/week01-02.md` | 주차별 작업 항목 |
 | `docs/ai-collab-log.md` | AI 출력 오류와 수정 기록 |
+| `docs/feature-closeout.md` | 기능 완료 시 마무리 절차, 챗 종료 시점 |
+| `docs/notes/` | 이슈별 코드 리뷰와 Unity 개념 대응 기록. 작업자 재독용 |
 
 ---
 
