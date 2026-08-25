@@ -34,11 +34,11 @@
 
 ### 이 프로젝트가 증명하려는 것
 
-기존 포트폴리오(DX9/DX11 자체 엔진 3종)로 C++ 기초와 엔진 구조 이해는 이미 증명됨.
-따라서 이 프로젝트의 한계 가치는 아래 세 가지에 집중합니다.
+기존 포트폴리오(DX9/DX11 자체 엔진 3종)로 C++ 기초와 엔진 구조 이해는 이미 증명했습니다.
+따라서 이 프로젝트가 새로 증명하는 가치는 아래 세 가지에 집중되어 있습니다.
 
 1. 상용 엔진(Unity) 워크플로 습득 능력
-2. **게임플레이 네트코드 직접 구현** — 예측, 재조정, 보간, 랙 보상
+2. **게임플레이 네트코드 직접 구현**: 예측, 재조정, 보간, 랙 보상
 3. AI 도구를 통제해서 활용한 개발 경험
 
 콘텐츠 분량이 아니라 네트워크 품질로 평가받는 프로젝트입니다.
@@ -95,8 +95,8 @@ Game -> Network      -> Simulation -> Core
 그런데 Simulation 계층은 `Time` 사용이 금지라 드라이버가 Simulation 안에 들어갈 수 없습니다.
 역할을 이렇게 나눕니다.
 
-- `Simulation` — 틱 인덱스와 고정 dt만 받아 상태를 전이시킵니다. 시간 개념이 없습니다
-- `Game` — 벽시계를 읽어 이번 프레임에 몇 틱 돌릴지 계산하고, Input 에서 입력을 모아
+- `Simulation`: 틱 인덱스와 고정 dt만 받아 상태를 전이시킵니다. 시간 개념이 없습니다
+- `Game`: 벽시계를 읽어 이번 프레임에 몇 틱 돌릴지 계산하고, Input 에서 입력을 모아
   Simulation 을 N번 진행시킨 뒤, 남은 알파를 Presentation 에 넘깁니다
 
 Input 과 Simulation 을 동시에 참조해야 하는 코드는 전부 여기 둡니다.
@@ -123,7 +123,7 @@ Input 과 Simulation 을 동시에 참조해야 하는 코드는 전부 여기 �
   매 프레임 호출되는 경로라면 GC 할당도 없어야 합니다
 - **시뮬레이션 상태를 `[SerializeField]` 로 노출하지 마세요.** 씬 파일에 런타임 값이
   저장되어 YAML 이 오염되고, 에디터에서 실수로 바꾼 값이 그대로 남습니다.
-  `CustomEditor` 로 읽기 전용 패널을 그리는 쪽을 씁니다
+  `CustomEditor` 로 읽기 전용 패널을 그리는 방식을 사용합니다
 
 **상태와 튜닝 값을 구분하세요.** 위 규칙은 시뮬레이션이 매 틱 쓰는 값에만 적용됩니다.
 
@@ -132,23 +132,23 @@ Input 과 Simulation 을 동시에 참조해야 하는 코드는 전부 여기 �
 | 시뮬레이션 상태 | `Position`, `Velocity`, `Tick`, 버퍼 인덱스 | 시뮬레이션이 씀. 매 틱 변함 | 읽기 전용. `CustomEditor` |
 | 튜닝 파라미터 | 이동 속도, 점프 속도, 중력, 충돌 박스 | 사람이 정함. 세션 내내 불변 | 편집 가능. ScriptableObject 애셋 |
 
-튜닝을 상수로 박으면 값 하나 만질 때마다 Play 중지, 재컴파일, 재실행을 반복해야 해서
+튜닝 값을 상수로 고정하면 값 하나를 수정할 때마다 Play 중지, 재컴파일, 재실행을 반복해야 해서
 플랫포머 감각 조정이 불가능합니다. 하드코딩과 같습니다.
 
 관측 수단 자체가 포트폴리오 산출물입니다. 7번의 디버그 오버레이 항목을 참조하세요.
 
 **MPPM 가상 플레이어는 별도 프로세스입니다.** 메인 에디터의 Inspector 나 EditorWindow 는
-호스트 인스턴스만 봅니다. 클라이언트에서 예측이 어떻게 어긋나는지는 그 창으로 보이지
+호스트 인스턴스만 표시합니다. 클라이언트에서 예측이 어떻게 어긋나는지는 그 창으로 보이지
 않습니다. 따라서 플레이어가 2명이 되는 2주차부터는 **런타임 화면 오버레이가 필수**입니다.
 오버레이는 매 프레임 호출 경로이므로 문자열 연결로 인한 GC 할당에 주의하세요.
 
 ### 애니메이션은 상태에서 파생시킵니다
 
 Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니다.
-시뮬레이션이 이벤트를 쏘고 애니메이션이 그것에 반응하는 구조를 만들지 마세요.
+시뮬레이션이 이벤트를 발생시키고 애니메이션이 그것에 반응하는 구조를 만들지 마세요.
 
 재조정 때문입니다. 서버 보정을 받으면 시뮬레이션이 과거 틱으로 되감겨 다시 실행됩니다.
-이벤트 기반이면 되감기 구간의 점프가 재생될 때마다 트리거가 다시 발사되어, 한 번 뛴
+이벤트 기반이면 되감기 구간의 점프가 재생될 때마다 트리거가 다시 발생하여, 한 번 뛴
 점프에 모션과 효과음이 여러 번 나옵니다. RTT 150ms 에 60Hz 면 매 보정마다 9틱이
 재생되므로 상시 발생합니다. 상태에서 파생시키면 되감기가 몇 번이든 최종 결과가 같습니다.
 
@@ -176,7 +176,7 @@ Presentation 은 `PlayerState` 를 읽어 Animator 파라미터를 세팅합니�
   됩니다. 누산기는 이번 프레임에 몇 틱을 돌릴지만 계산하고, 시뮬레이션 상태는 `uint tick`
   으로만 식별해야 재조정 시 특정 틱을 지목할 수 있습니다
 - **튜닝 값은 전부 초당 단위로 정의합니다.** 중력을 "틱당 0.5"가 아니라 "초당 -30
-  units/s^2"으로 두고 `FixedDeltaTime`을 곱하세요. 틱당 단위로 박으면 틱레이트 변경이
+  units/s^2"으로 두고 `FixedDeltaTime`을 곱하세요. 틱당 단위로 정의하면 틱레이트 변경이
   사실상 불가능해집니다
 
 **검증법**: Simulation 어셈블리에서 위 금지 심볼 참조가 0건인가?
@@ -194,7 +194,7 @@ MPPM 2인 접속에서 직접 관측한 값입니다 (2026-08-12, 이슈 #5).
 핵심은 **Host 에서 `IsServer` 와 `IsClient` 가 동시에 참**이라는 것입니다. Host 는
 서버와 클라이언트를 한 프로세스에서 겸합니다. 그래서 `if (IsClient)` 로 클라이언트
 전용 처리를 감싸면 Host 에서도 실행되고, `if (IsServer)` 로 감싼 권위 판정도 Host 에서
-실행됩니다. 둘 다 도는 것이 정상이며, **Host 에서만 우연히 동작하는 코드**가 여기서
+실행됩니다. 둘 다 실행되는 것이 정상이며, **Host 에서만 우연히 동작하는 코드**가 여기서
 나옵니다. 판정 코드는 항상 순수 Client 로 검증해야 합니다.
 
 `IsHost` 는 `IsServer && IsClient` 의 축약이므로 분기 조건으로 쓸 일이 거의 없습니다.
@@ -238,60 +238,60 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
 > **작업하면서 직접 갱신하세요.** 새 챗을 열 때 현재 위치를 파악하는 근거가 됩니다.
 
 **현재 주차**: 2주차
-**현재 작업 항목**: 이슈 #7 나이브 위치 동기화 완료. 다음은 2주차 C — 지연 조건
-문제 상황 영상 2종과 기준선 대역폭 측정. 마일스톤 M2
+**현재 작업 항목**: 이슈 #7 나이브 위치 동기화를 완료했습니다. 다음은 2주차 C 입니다. 지연 조건에서의
+문제 상황 영상 2종을 확보하고 기준선 대역폭을 측정합니다. 마일스톤 M2
 
 이슈 #7 에서 확정한 것 두 가지입니다. 3주차까지 유효합니다.
 
 1. **`WorldState` 승격은 3주차로 미룹니다.** 서버 권위가 되면 Host 가 모든 플레이어를
    시뮬레이션해야 하므로 `TickDriver` 가 플레이어별 상태 컬렉션을 들게 됩니다.
    다만 `WorldState` 는 스냅샷 링버퍼의 원소이고 링버퍼는 3주차 것이라, 지금 만들면
-   용도 없는 그릇만 생기고 실제 직렬화를 붙일 때 형태가 안 맞을 공산이 큽니다.
+   용도 없는 빈 구조만 생기고 실제 직렬화를 붙일 때 형태가 맞지 않을 가능성이 큽니다.
    이번에 필요한 것은 "서버가 여러 명을 순회한다"뿐입니다.
    **순회 순서만 지금부터 `SpawnIndex` 오름차순으로 고정합니다.** 등록 순서는
-   접속 순서라 피어마다 갈릴 수 있고, 순서가 결과를 바꾸는 로직이 하나라도 생기면
+   접속 순서라 피어마다 달라질 수 있고, 순서가 결과를 바꾸는 로직이 하나라도 생기면
    그때부터 divergence 원인이 됩니다. 지금 지키는 비용은 0 입니다.
 2. **`Core/InputCommand` 에 NGO 직렬화 인터페이스를 붙이지 않습니다.** RPC 파라미터
    요구사항 때문에 붙이고 싶어지지만, 그러면 참조 그래프 최하단인 `Blast.Core` 가
-   NGO 에 묶이고 Simulation 과 EditMode 테스트까지 전부 끌려갑니다.
+   NGO 에 의존하게 되고 Simulation 과 EditMode 테스트까지 그 의존이 전파됩니다.
    `Blast.Network` 에 전송용 타입을 따로 두고 변환합니다.
 
 ### 완료
 
 **환경과 구조 (1주차 A, C-1)**
 - Unity 6000.5.6f1, Force Text, Visible Meta Files, Git LFS, VS Code
-- 어셈블리 분리 — `Assets/Scripts/` 하위 asmdef 7개. 참조는 GUID 가 아닌 이름 참조
+- 어셈블리 분리: `Assets/Scripts/` 하위 asmdef 7개. 참조는 GUID 가 아닌 이름 참조
 - Domain Reload 활성화 (아래 저장소 특이사항 참조)
-- `.editorconfig` — 코드 컨벤션을 Roslyn 진단으로 강제
+- `.editorconfig`: 코드 컨벤션을 Roslyn 진단으로 강제
 
 **시뮬레이션 (1주차 E)**
-- `Core/InputCommand`, `Core/PlayerState` — 틱 단위 입력과 상태 구조체
-- `Core/FixedTickAccumulator` — 순수 누산기. 벽시계를 읽지 않아 테스트 가능
-- `Core/SimulationConstants` — 틱레이트 60Hz, 프레임당 최대 5틱
-- `Simulation/CharacterController2D` — BoxCast 커스텀 kinematic 컨트롤러.
+- `Core/InputCommand`, `Core/PlayerState`: 틱 단위 입력과 상태 구조체
+- `Core/FixedTickAccumulator`: 순수 누산기. 벽시계를 읽지 않아 테스트 가능
+- `Core/SimulationConstants`: 틱레이트 60Hz, 프레임당 최대 5틱
+- `Simulation/CharacterController2D`: BoxCast 커스텀 kinematic 컨트롤러.
   수평 캐스트 후 수직 캐스트, 접지 프로브, 코요테 타임
-- `Input/KeyboardInputSource` — 폴링 + 에지 입력 래치
-- `Presentation/PlayerPresenter` — 알파 보간, 충돌 박스 기즈모
-- `Game/TickDriver` — 고정 틱 누산기 루프
+- `Input/KeyboardInputSource`: 폴링 + 에지 입력 래치
+- `Presentation/PlayerPresenter`: 알파 보간, 충돌 박스 기즈모
+- `Game/TickDriver`: 고정 틱 누산기 루프
 
 **네트워크 (2주차 A, 이슈 #1)**
 - NGO 2.13.1, MPPM 2.0.2, multiplayer tools 2.2.10 설치
-- `NetworkManager` — Unity Transport, 127.0.0.1:7777, Allow Remote Connections 끔.
-  Topology 는 인스펙터에 노출되지 않으며 기본값 `ClientServer` 를 그대로 씀
-- `Network/ConnectionLauncher` — NGO 접속 래퍼. NGO 타입을 만지는 유일한 지점이라
+- `NetworkManager`: Unity Transport, 127.0.0.1:7777, Allow Remote Connections 를 껐습니다.
+  Topology 는 인스펙터에 노출되지 않으며 기본값 `ClientServer` 를 그대로 사용합니다
+- `Network/ConnectionLauncher`: NGO 접속 래퍼. NGO 타입을 직접 다루는 유일한 지점이라
   `Blast.Game` 은 NGO 어셈블리를 참조하지 않음. 시작 시 Topology 와 NGO TickRate 로그
-- `Game/ConnectionHud` — IMGUI 임시 접속 UI. 상태 변화 시에만 문자열 재조립.
+- `Game/ConnectionHud`: IMGUI 임시 접속 UI. 상태 변화 시에만 문자열 재조립.
   F1 로 표시 전환 (영상 촬영용)
 - MPPM 가상 플레이어 2개로 Host + Client 접속 확인
 
 **네트워크 (2주차 B, 이슈 #5)**
-- `Player.prefab` — `NetworkObject` + `Network/NetworkPlayer` + `PlayerPresenter`.
+- `Player.prefab`: `NetworkObject` + `Network/NetworkPlayer` + `PlayerPresenter`.
   NetworkManager 의 Default Player Prefab 으로 등록해 접속 시 자동 스폰
-- `Network/PlayerHandle` — 계층 경계용 핸들. NGO 타입을 상속하지 않아서
+- `Network/PlayerHandle`: 계층 경계용 핸들. NGO 타입을 상속하지 않아서
   상위 계층이 `Unity.Netcode.Runtime` 참조 없이 플레이어를 다룰 수 있음.
   이 타입이 없으면 CS0012 로 컴파일이 깨진다 (`docs/ai-collab-log.md` 참조)
-- `Network/PlayerRegistry` — 스폰된 플레이어와 로컬 소유자. 스폰/디스폰 이벤트
-- `Game/TickDriver` — 프리젠터를 씬에서 물지 않고 스폰 시 주입받도록 변경.
+- `Network/PlayerRegistry`: 스폰된 플레이어와 로컬 소유자. 스폰/디스폰 이벤트
+- `Game/TickDriver`: 프리젠터를 씬에서 직접 참조하지 않고 스폰 시 주입받도록 변경.
   로컬 소유 플레이어가 없으면 틱을 진행하지 않음
 - 스폰 위치는 `SpawnIndex` 의 결정적 함수. 위치를 주고받지 않아도 모든 피어가
   같은 자리에 그린다. 움직이는 플랫폼을 대역폭 0 으로 동기화하는 것과 같은 원리
@@ -300,22 +300,22 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
 **네트워크 (2주차 B 나머지, 이슈 #7)**
 
 일부러 나이브하게 만든 구간입니다. 예측도 보간도 없습니다. 2주차 C 문제 상황
-영상의 "before" 가 이 상태이며, 3주차가 이것을 하나씩 걷어냅니다.
+영상의 "before" 가 이 상태이며, 3주차에 이 제약을 하나씩 제거합니다.
 
-- `Network/NetworkInputCommand` — 입력의 전송용 표현. `Core/InputCommand` 에
+- `Network/NetworkInputCommand`: 입력의 전송용 표현. `Core/InputCommand` 에
   `INetworkSerializable` 을 붙이지 않기 위한 것. 붙이면 참조 그래프 최하단인
-  `Blast.Core` 가 NGO 에 묶이고 Simulation 과 EditMode 테스트까지 끌려간다
-- `Network/IPlayerLink` — 핸들이 NGO 컴포넌트를 부르는 통로. `internal` 이라
+  `Blast.Core` 가 NGO 에 의존하게 되고 Simulation 과 EditMode 테스트까지 그 의존이 전파된다
+- `Network/IPlayerLink`: 핸들이 NGO 컴포넌트를 부르는 통로. `internal` 이라
   어셈블리 밖으로 나가지 않는다
-- `Network/NetworkPeer` — 이 피어가 서버인가. 값을 캐싱하지 않고 매번 조회한다.
+- `Network/NetworkPeer`: 이 피어가 서버인가. 값을 캐싱하지 않고 매번 조회한다.
   `IsHost` 는 일부러 노출하지 않는다. 서버 로직의 조건은 항상 `IsServer` 여야 하며
-  `IsHost` 로 분기하면 데디케이티드로 돌릴 수 없다
-- `Network/NetworkPlayer` — 입력 수신 RPC, 위치 발행 `NetworkVariable`,
+  `IsHost` 로 분기하면 데디케이티드 서버에서 실행할 수 없다
+- `Network/NetworkPlayer`: 입력 수신 RPC, 위치 발행 `NetworkVariable`,
   권한 모드 방송. 입력 보관은 큐가 아닌 슬롯 한 개
-- `Game/TickDriver` — 플레이어별 상태를 `SpawnIndex` 오름차순으로 순회.
+- `Game/TickDriver`: 플레이어별 상태를 `SpawnIndex` 오름차순으로 순회.
   `WorldState` 승격은 3주차 스냅샷 링버퍼 시점으로 미룸
 
-**권한 모드** — F3 으로 런타임 전환한다. 비교 촬영용이다.
+**권한 모드**: F3 으로 런타임 전환한다. 비교 촬영용이다.
 
 | | 서버 권위 | 클라 권위 |
 |---|---|---|
@@ -325,7 +325,7 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
 | 서버 검증 | 서버가 계산하므로 불필요 | 없음. 벽 안쪽 좌표도 통과 |
 
 두 모드 모두 캐릭터 하나당 시뮬레이터가 정확히 하나다. 둘이 되면 서로 위치를
-덮어쓰며 떨고, 영이 되면 아무도 안 움직인다. 이 판단은 `IsSimulatedHere` 하나가
+덮어쓰면서 떨림이 발생하고, 영이 되면 아무도 움직이지 않는다. 이 판단은 `IsSimulatedHere` 하나가
 하고 시뮬레이션 루프와 렌더 루프가 그것을 공유한다.
 
 모드 자체를 `NetworkVariable` 로 서버가 방송하는 이유는 피어별 불일치를 막기
@@ -337,20 +337,20 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
 - 렌더 보간에는 성격이 다른 둘이 있다. 틱 알파 보간은 60Hz 틱과 화면
   프레임레이트가 안 맞는 문제이고 네트워크와 무관하다. 스냅샷 보간은 30Hz 로
   도착하는 원격 상태를 메우는 것이다. 이번에 없애야 하는 것은 뒤쪽뿐인데
-  앞쪽까지 없애면 서버가 직접 돌리는 캐릭터까지 떤다
+  앞쪽까지 없애면 서버가 직접 시뮬레이션하는 캐릭터까지 떨린다
 - 입력은 60Hz 로 생성되는데 NGO 전송 틱은 30Hz 다. 서버가 한 프레임에 RPC 를
-  두 개씩 받으므로 슬롯에 그냥 대입하면 에지 입력이 소비 전에 덮어써진다.
+  두 개씩 받으므로 슬롯에 단순히 대입하면 에지 입력이 소비 전에 덮어써진다.
   지터 때문이 아니라 레이트가 정수배로 어긋나 있어 항상 일어난다.
   에지만 OR 로 합쳐 소비 전까지 유지하는 것으로 막았고, 순서와 시각 정보를
   살리는 것은 3주차 입력 버퍼다
 
 **검증 수단**
-- `tools/check-layering.ps1` — asmdef 참조 방향 + Simulation 금지 심볼
-- `Tests/EditMode` — 누산기 시간 보존, 클램프, 결정성, 프레임레이트 무관성 12개 케이스
-- `Editor/TickDriverEditor` — Play 중 시뮬레이션 상태 읽기 전용 표시.
+- `tools/check-layering.ps1`: asmdef 참조 방향 + Simulation 금지 심볼
+- `Tests/EditMode`: 누산기 시간 보존, 클램프, 결정성, 프레임레이트 무관성 12개 케이스
+- `Editor/TickDriverEditor`: Play 중 시뮬레이션 상태 읽기 전용 표시.
   권한 모드, 여기서 시뮬레이션 중인 캐릭터 수, 송신 및 수신 입력 틱
-- `Game/ConnectionHud` — F1 표시 전환, F2 소유권 검사 테스트, F3 권한 모드 전환
-- RNSM (`Assets/Settings/NetStatsMonitorConfiguration.asset`) — 런타임 RTT 와 대역폭 표시
+- `Game/ConnectionHud`: F1 표시 전환, F2 소유권 검사 테스트, F3 권한 모드 전환
+- RNSM (`Assets/Settings/NetStatsMonitorConfiguration.asset`): 런타임 RTT 와 대역폭 표시
 
 ### 진행 중
 - (없음)
@@ -361,8 +361,8 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
 
 - **`Assets/Player.cs` 는 제거했습니다** (2026-08-12). 유니티 워크플로 체험용으로 만든
   Rigidbody2D 기반 이동 코드였습니다. 한때 BoxCast 컨트롤러와의 비교 자료로 남기려
-  했으나, 금지된 방식의 코드가 저장소에 살아 있으면 규칙과 충돌하고 씬도 오염되므로
-  지웠습니다. 비교가 필요하면 git 이력에서 꺼냅니다.
+  했으나, 금지된 방식의 코드가 저장소에 남아 있으면 규칙과 충돌하고 씬도 오염되므로
+  삭제했습니다. 비교가 필요하면 git 이력에서 확인합니다.
 
   ```bash
   git show af51a53:Assets/Player.cs
@@ -375,21 +375,21 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
   **Play 전에 저장하는 것을 습관으로 둡니다.**
 - **콘솔의 `[RelayService] Bus validation failed` 는 Unity Relay 가 아닙니다.**
   `com.unity.ai.assistant` 패키지 내부의 메시지 버스 이름이 우연히 같을 뿐이고
-  NGO 접속과 무관합니다. 영상 촬영 시 콘솔이 지저분해지므로 해당 패키지 제거 검토.
+  NGO 접속과 무관합니다. 영상 촬영 시 콘솔 출력이 어수선해지므로 해당 패키지 제거를 검토합니다.
 - **`Receive queue is full` 경고는 에디터 히칭 때 나옵니다** (2026-08-17 확인).
   UnityTransport 가 한 번의 업데이트에서 처리할 패킷 수 한도(128)를 넘겼다는
   뜻인데, 정상 트래픽 때문이 아닙니다. 서버 권위에서는 정지 상태에도 입력 RPC 가
   초당 60개 나가므로 조작 여부로 패킷 수가 거의 변하지 않는데, 가만히 두면
-  경고가 나오지 않습니다. 콘솔에 예외 스택이 찍히는 등으로 수십 ms 멈추면
+  경고가 나오지 않습니다. 콘솔에 예외 스택이 출력되는 등으로 수십 ms 멈추면
   그동안 쌓인 패킷이 재개 시 몰려서 넘칩니다.
-  **`Max Packet Queue Size` 를 늘리지 마세요.** 증상을 덮을 뿐입니다.
+  **`Max Packet Queue Size` 를 늘리지 마세요.** 증상을 감출 뿐입니다.
 - **정지 상태에도 입력 RPC 가 초당 60개 나갑니다.** 전부 아무것도 누르지 않은
   입력입니다. 나이브 구현의 낭비이며 일부러 남겨둔 것입니다. 2주차 C 기준선
   대역폭에 그대로 잡히고, 그 숫자가 3주차 최적화의 비교 대상이 됩니다.
 - **Enter Play Mode Options 의 Domain Reload 를 켰습니다** (2026-08-11 변경).
   `EditorSettings.asset` 의 `m_EnterPlayModeOptions` 를 1 에서 0 으로 바꿨습니다.
   이전 값 1 은 DisableDomainReload 라 Play 진입은 빨랐지만 static 필드가 Play 마다
-  초기화되지 않았습니다. 틱 카운터나 싱글턴이 이전 Play 의 값을 물고 있으면 예측과
+  초기화되지 않았습니다. 틱 카운터나 싱글턴이 이전 Play 의 값을 그대로 유지하고 있으면 예측과
   재조정 디버깅이 불가능해집니다. Play 진입 속도를 되찾고 싶어지면 static 을 먼저
   제거하고 다시 끄세요.
 
@@ -423,12 +423,12 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
 `Simulation/CharacterTuning` 구조체에 모여 있고, 편집은 `Game/CharacterTuningAsset`
 ScriptableObject 애셋으로 합니다. **씬이나 프리팹에 직렬화하지 않습니다.**
 클라이언트와 서버가 반드시 같은 값을 써야 하는데, 씬이나 프리팹에 두면 인스턴스마다
-갈라질 수 있고 그 순간 예측 결과와 서버 결과가 어긋납니다. 애셋 하나가 빌드에
+달라질 수 있고 그 순간 예측 결과와 서버 결과가 어긋납니다. 애셋 하나가 빌드에
 포함되므로 그 경로가 막힙니다.
 
 `Step` 은 튜닝을 `in` 인자로 받습니다. 애셋을 직접 읽지 않는 이유는 dt 를 인자로
 받는 것과 같습니다. 테스트에서 임의 값을 주입할 수 있어야 하고, 값의 출처가
-숨으면 안 됩니다. 접지 프로브 거리는 스킨 두께에서 파생되는 프로퍼티입니다.
+감춰지면 안 됩니다. 접지 프로브 거리는 스킨 두께에서 파생되는 프로퍼티입니다.
 독립 필드로 두면 스킨과 어긋났을 때 접지가 조용히 깨집니다.
 
 **MPPM 제약**: 가상 플레이어는 별도 프로세스라 각자 로드한 애셋 사본을 씁니다.
@@ -458,13 +458,13 @@ ScriptableObject 애셋으로 합니다. **씬이나 프리팹에 직렬화하�
 ## 8. 미결 사항
 
 - 프로젝트 이름
-- **다중 플레이어 구조** — 2주차 NGO 스폰 방식을 본 뒤 결정. 방향은 정해져 있음:
+- **다중 플레이어 구조**: 2주차 NGO 스폰 방식을 본 뒤 결정. 방향은 정해져 있음:
   `PlayerState` 하나가 아니라 `WorldState { uint Tick; PlayerState[] Players; }` 로
   승격해야 함. 이것이 스냅샷 단위이자 3주차 링버퍼의 원소가 됨.
   NGO 의 `OwnerClientId` 는 `ulong` 이고 희소해서 배열 인덱스로 쓸 수 없으므로,
   서버가 `clientId -> 0..N-1` 매핑을 할당하고 모든 피어가 같은 매핑을 공유해야 함.
-  순회 순서는 인덱스 오름차순 고정 (순서가 결과를 바꾸는 경우 갈라짐).
-  미리 만들지 말 것. 쓰지 않는 추상화만 남음
+  순회 순서는 인덱스 오름차순으로 고정합니다 (순서가 결과를 바꾸면 피어마다 상태가 달라짐).
+  미리 만들지 말 것. 사용하지 않는 추상화만 남는다
 - 캐릭터 수와 역할 구분 여부
 - 전투 액션 구성 (기본 공격, 대시, 방어 등)
 - 스테이지 수와 승패 조건
@@ -501,7 +501,7 @@ ScriptableObject 애셋으로 합니다. **씬이나 프리팹에 직렬화하�
 ### 마일스톤
 
 - 단위는 **시스템**입니다. 주차가 아닙니다. 일정이 밀려도 구조가 흔들리지 않습니다
-- 완료 조건을 설명(description)에 반드시 적습니다. 무엇이 되면 닫는지가 없으면 계속 열려 있습니다
+- 완료 조건을 설명(description)에 반드시 적습니다. 무엇이 충족되면 닫는지가 없으면 계속 열려 있습니다
 - **미리 다 만들지 않습니다.** 현재 진행 중 + 다음 것까지 최대 2개만 열어둡니다
 - 완료 시 닫으면서 `project_context.md` 5번(진행 상태)과 6번(확정 수치)을 갱신합니다
 
@@ -516,7 +516,7 @@ ScriptableObject 애셋으로 합니다. **씬이나 프리팹에 직렬화하�
 
 ### 이슈
 
-**분할 기준** — 아래를 모두 만족하는 크기로 쪼갭니다.
+**분할 기준**: 아래를 모두 만족하는 크기로 분할합니다.
 
 - 반나절 ~ 2일 작업량
 - 완료 판정 기준이 하나로 명확함
@@ -526,7 +526,7 @@ ScriptableObject 애셋으로 합니다. **씬이나 프리팹에 직렬화하�
 예: "BoxCast 컨트롤러 구현"(X, 너무 큼) → "수평 이동 캐스트 및 충돌 보정"(O),
 "수직 이동 및 지면 접촉 판정"(O), "코요테 타임"(O)
 
-**생성 시점** — 작업 **시작 전**에 만듭니다. 끝나고 소급 생성하지 않습니다.
+**생성 시점**: 작업 **시작 전**에 만듭니다. 끝나고 소급 생성하지 않습니다.
 이슈 없는 커밋은 만들지 않습니다.
 
 **본문 형식**

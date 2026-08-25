@@ -1,4 +1,4 @@
-# 이슈 #7 — NetworkVariable 기반 나이브 위치 동기화
+# 이슈 #7: NetworkVariable 기반 나이브 위치 동기화
 
 - 날짜: 2026-08-17
 - 브랜치: `feat/7-naive-position-sync`
@@ -11,7 +11,7 @@
 
 ## 1. 코드 리뷰
 
-### 실제 결함 — 접속 전에 누른 점프가 새어 들어옴
+### 실제 결함: 접속 전에 누른 점프가 유입됨
 
 ```csharp
 private void Update()
@@ -26,7 +26,7 @@ private void Update()
 ```
 
 `KeyboardInputSource` 는 점프를 래치로 붙잡아 둡니다. 프레임과 틱이 1대1이 아니라
-필요한 장치인데, **틱이 안 도는 구간에서는 래치를 걷을 주체가 없습니다.**
+필요한 장치인데, **틱이 돌지 않는 구간에서는 래치를 해제할 주체가 없습니다.**
 
 재현: Play 후 접속 전에 스페이스 연타 → Start Host → 캐릭터가 스폰하자마자 점프.
 
@@ -49,25 +49,25 @@ if (_entries.Count == 0)
 
 상태: 미수정. 다음 이슈로 이월.
 
-### 죽은 안전장치 — `PlayerRegistry.Clear()` 호출부 없음
+### 호출되지 않는 안전장치: `PlayerRegistry.Clear()` 호출부 없음
 
-Shutdown 후 재접속에서 잔여 항목을 막으려고 만들었는데 아무도 부르지 않습니다.
+Shutdown 후 재접속에서 잔여 항목을 막으려고 만들었는데 아무도 호출하지 않습니다.
 **재접속 경로를 한 번도 테스트하지 않았다는 뜻이기도 합니다.**
 
 Domain Reload 가 켜져 있어 Play 진입마다는 초기화됩니다. 그러나 Play 중에
 Shutdown 후 다시 Start Host 를 하면 어떻게 되는지 확인된 바 없습니다.
 
-상태: 미확인. 3주차 예측 작업 전에 눌러볼 것.
+상태: 미확인. 3주차 예측 작업 전에 확인할 것.
 
 ### 사소한 것 셋
 
 - `TickDriver.SimulatedHereCount` 가 프로퍼티인데 O(n) 순회를 한다. 인스펙터가
-  매 프레임 읽는다. 2인이라 무해하지만 **필드 읽기처럼 보이는 것이 루프를 도는 것은
-  정직하지 않다.** 메서드로 두는 편이 낫다
+  매 프레임 읽는다. 2인이라 무해하지만 **필드 읽기처럼 보이는 것이 내부에서 루프를
+  도는 것은 적절하지 않다.** 메서드로 두는 편이 낫다
 - `RequestAuthorityModeRpc` 가 `GameObject.GetComponent<NetworkPlayer>()` 로 역방향
-  조회를 한다. 핸들이 이미 `IPlayerLink` 를 들고 있으므로 거기에 메서드를 두면 곧다
+  조회를 한다. 핸들이 이미 `IPlayerLink` 를 들고 있으므로 거기에 메서드를 두는 편이 직접적이다
 - F1, F2, F3 는 **Game 뷰에 포커스가 있어야** 동작한다. IMGUI 키 이벤트라서 그렇다.
-  촬영 중 인스펙터를 클릭하면 먹지 않는다
+  촬영 중 인스펙터를 클릭하면 동작하지 않는다
 
 ### 유지할 판단
 
@@ -110,8 +110,8 @@ C++ 컴파일러가 정의를 요구하듯, 상위 어셈블리가 `NetworkPlaye
 
 **핵심은 컴포넌트 간 `Update()` 호출 순서가 명세되지 않았다는 것입니다.**
 인스턴스화 순서나 씬 저장 순서에 따라 달라질 수 있습니다. `TickDriver` 가 씬에
-하나만 있고 입력 폴링까지 직접 소유하는 이유가 이것입니다. **순서를 엔진에게
-맡기지 않고 함수 본문에 적어버린 것**이며, 자체 엔진에서 하던 방식으로 되돌린
+하나만 있고 입력 폴링까지 직접 소유하는 이유가 이것입니다. **순서를 엔진에
+맡기지 않고 함수 본문에 명시한 것**이며, 자체 엔진에서 하던 방식으로 되돌린
 셈입니다.
 
 | Unity | 자체 엔진 |
@@ -121,10 +121,10 @@ C++ 컴파일러가 정의를 요구하듯, 상위 어셈블리가 `NetworkPlaye
 | `Update` | 프레임 틱 |
 | `OnDestroy` | 소멸자 |
 
-`OnEnable` 에서 구독하고 `OnDisable` 에서 해제하는 대칭이 RAII 흉내입니다.
+`OnEnable` 에서 구독하고 `OnDisable` 에서 해제하는 대칭이 RAII 를 모방한 것입니다.
 C# 에는 결정적 소멸자가 없어 **직접 짝을 맞춰야 합니다.**
 
-### struct 와 class — 가장 헷갈릴 지점
+### struct 와 class: 가장 혼동하기 쉬운 지점
 
 C++ 에서 `struct` 와 `class` 는 기본 접근 지정자만 다르고, 값이냐 참조냐는
 **사용하는 쪽**이 정합니다 (`T`, `T&`, `T*`). C# 은 **타입 선언에서 고정됩니다.**
@@ -133,7 +133,7 @@ C++ 에서 `struct` 와 `class` 는 기본 접근 지정자만 다르고, 값이
 - `class` = 참조 타입. 대입하면 포인터 복사. **항상 힙**
 
 `PlayerState` 가 `struct` 인 것은 POD 로 두고 통째로 복사하고 저장하기 위해서입니다.
-3주차 스냅샷 링버퍼가 `PlayerState[]` 가 되면 요소가 인라인으로 박혀 캐시
+3주차 스냅샷 링버퍼가 `PlayerState[]` 가 되면 요소가 인라인으로 저장되어 캐시
 친화적입니다. `class` 였다면 포인터 배열이 되고 요소마다 힙 객체가 흩어집니다.
 
 `in PlayerState state` 가 `const PlayerState&` 입니다.
@@ -144,26 +144,26 @@ C++ 에서 `struct` 와 `class` 는 기본 접근 지정자만 다르고, 값이
 private FixedTickAccumulator _accumulator;   // readonly 로 바꾸면 깨진다
 ```
 
-`readonly` struct 필드에 상태를 바꾸는 메서드를 호출하면 C# 컴파일러가 **말없이
+`readonly` struct 필드에 상태를 바꾸는 메서드를 호출하면 C# 컴파일러가 **아무 경고 없이
 복사본을 만들어** 거기에 호출합니다. 원본은 바뀌지 않습니다. C++ 이라면 `const`
 객체에 비-const 멤버 함수 호출은 컴파일 에러인데, C# 은 조용히 복사합니다.
 
-증상이 고약합니다. 60fps 에서는 우연히 맞고 다른 프레임레이트에서만 틀립니다.
+증상이 까다롭습니다. 60fps 에서는 우연히 맞고 다른 프레임레이트에서만 틀립니다.
 Rider 가 readonly 로 만들라고 제안하는데 **따르면 안 됩니다.**
 
 `PlayerSimEntry` 를 `struct` 가 아니라 `class` 로 둔 것도 같은 이유입니다.
 `List<T>` 의 인덱서는 값 복사본을 돌려주므로, struct 였다면
 `_entries[i].State = ...` 가 복사본만 고치고 사라집니다.
 
-### GC — 프레임 아레나가 없는 세상
+### GC: 프레임 아레나가 없는 환경
 
 `new` 는 힙 할당이고 해제는 GC 가 합니다. 문제는 **언제 하는지 모른다**는 것이고,
-수집이 돌면 프레임이 멈춥니다.
+수집이 실행되면 프레임이 멈춥니다.
 
 자체 엔진에서 프레임 아레나 할당자를 두고 프레임 끝에 리셋했다면, 여기서는
 **애초에 할당하지 않는 것**이 유일한 방어입니다. `GetComponent` 를 스폰 시 한 번만
 캐싱하고, `StringBuilder` 를 재사용하고, 델리게이트를 미리 만들어 두는 것이
-전부 그 얘기입니다.
+전부 같은 목적입니다.
 
 C++ 에서 보이지 않던 숨은 할당 넷:
 
@@ -189,7 +189,7 @@ C++ 에서 보이지 않던 숨은 할당 넷:
 `TickDriver` 의 `OnEnable` / `OnDisable` 짝, `ConnectionHud` 의 `Start` /
 `OnDestroy` 짝이 그 방어입니다.
 
-### NGO 의 RPC 는 마법이 아니다
+### NGO 의 RPC 는 코드 생성의 결과다
 
 `[Rpc]` 가 붙은 메서드는 **컴파일 후 IL 이 재작성됩니다.** ILPP (IL Post Processing)
 라고 하며, 빌드 파이프라인이 어셈블리를 열어 메서드 본문 앞에 "호출자가 원격이면
@@ -200,29 +200,29 @@ C++ 에서 보이지 않던 숨은 할당 넷:
 직렬화 가능해야 합니다. **생성기가 이해할 수 있는 형태여야 한다**는 뜻입니다.
 
 `NetworkVariable<T>` 는 레플리케이션 프로퍼티입니다. 값이 바뀌면 더티 플래그가
-서고, 전송 틱(30Hz)에 더티한 것만 모아 보냅니다. 값이 같으면 더티가 서지 않아
-정지한 플레이어는 대역폭을 쓰지 않습니다. **자체 엔진에서 직접 짰을 델타 압축의
+설정되고, 전송 틱(30Hz)에 더티한 것만 모아 보냅니다. 값이 같으면 더티가 서지 않아
+정지한 플레이어는 대역폭을 쓰지 않습니다. **자체 엔진에서 직접 구현했을 델타 압축의
 가장 단순한 형태입니다.**
 
 ### 에셋과 GUID
 
 `.meta` 파일 하나가 에셋 하나의 GUID 를 들고 있습니다. 씬과 프리팹은 **경로가
 아니라 GUID 로** 서로를 참조합니다. 그래서 파일을 옮겨도 참조가 깨지지 않고,
-**`.meta` 를 지우면 새 GUID 가 발급되어 참조가 전부 끊깁니다.**
+**`.meta` 를 삭제하면 새 GUID 가 발급되어 참조가 전부 끊깁니다.**
 
-자체 엔진의 에셋 DB 와 리소스 핸들 그대로입니다. 다른 점은 GUID 대장이 별도 DB 가
+자체 엔진의 에셋 DB 와 리소스 핸들 그대로입니다. 다른 점은 GUID 목록이 별도 DB 가
 아니라 파일마다 흩어져 있고, 그래서 Git 에 같이 커밋해야 한다는 것입니다.
 
 씬 파일(`.unity`)은 **직렬화된 오브젝트 그래프**입니다. 오브젝트와 그 필드값이
 통째로 들어 있습니다. `[SerializeField]` 를 붙인 필드가 여기 저장됩니다.
 **시뮬레이션 상태에 붙이면 안 되는 이유가 이것**이며, 런타임 값이 레벨 파일에
-박힙니다.
+저장됩니다.
 
 ---
 
 ## 3. 스크립트 파일별 설명
 
-이 이슈에서 건드린 파일은 8 개입니다. 신규 3, 재작성 3, 부분 수정 2.
+이 이슈에서 수정한 파일은 8 개입니다. 신규 3, 재작성 3, 부분 수정 2.
 
 ```
 Assets/Scripts/
@@ -283,13 +283,13 @@ TickDriver.Update
 
 ### 신규 파일
 
-#### `Network/NetworkPeer.cs` — 역할 조회 창구
+#### `Network/NetworkPeer.cs`: 역할 조회 창구
 
 `TickDriver` 가 "내가 서버인가"를 알아야 하는데, `NetworkManager.Singleton.IsServer`
-를 직접 읽으면 `Blast.Game` 이 NGO 를 참조하게 됩니다. 그 한 줄을 대신 물어주는
+를 직접 읽으면 `Blast.Game` 이 NGO 를 참조하게 됩니다. 그 한 줄을 대신 조회해 주는
 `static` 클래스입니다.
 
-파일 하나를 만들 만한 일인가 싶지만, **이 타입의 설계는 무엇을 노출하느냐가 아니라
+파일 하나를 따로 둘 만한 일인지 의문이 들 수 있지만, **이 타입의 설계는 무엇을 노출하느냐가 아니라
 무엇을 노출하지 않느냐에 있습니다.**
 
 ```csharp
@@ -300,20 +300,20 @@ public static bool IsClient { get; }
 
 `IsHost` 를 넣지 않은 것이 요점입니다. 서버 분기를 `IsHost` 로 쓰기 시작하면 그 코드는
 데디케이티드 서버에서 실행되지 않습니다. **타입에 존재하지 않으면 실수할 수 없다**는
-쪽을 택했습니다. C++ 에서 위험한 생성자를 `explicit` 로 막거나 `delete` 하는 것과
+방식을 택했습니다. C++ 에서 위험한 생성자를 `explicit` 로 막거나 `delete` 하는 것과
 같은 성격입니다.
 
 값을 캐싱하지 않고 매번 조회합니다. 캐싱하면 "누가 언제 갱신하는가"가 생기고,
 한 곳이라도 빠뜨리면 역할이 틀린 채로 프레임이 돕니다.
 
-#### `Network/NetworkInputCommand.cs` — 와이어 표현
+#### `Network/NetworkInputCommand.cs`: 와이어 표현
 
 `Core/InputCommand` 를 그대로 보내려면 거기에 `INetworkSerializable` 을 붙여야 하고,
 그러면 **참조 그래프 최하단인 `Blast.Core` 가 NGO 를 참조하게 됩니다.** Core 를 참조하는
-Simulation, Input, EditMode 테스트까지 전부 NGO 에 묶입니다. 네트워크 없이 시뮬레이션만
-돌려보는 경로가 막히고, 그 경로가 막히면 결정성 검증 자체를 못 합니다.
+Simulation, Input, EditMode 테스트까지 전부 NGO 에 의존하게 됩니다. 네트워크 없이
+시뮬레이션만 실행해 보는 경로가 막히고, 그 경로가 막히면 결정성 검증 자체를 할 수 없습니다.
 
-그래서 같은 필드를 가진 쌍둥이 구조체를 Network 계층에 따로 뒀습니다.
+그래서 같은 필드를 가진 별도의 구조체를 Network 계층에 따로 뒀습니다.
 
 ```csharp
 public static NetworkInputCommand From(in InputCommand command)
@@ -338,13 +338,13 @@ serializer.SerializeValue(ref Tick);
 **필드 추가 시 순서가 곧 프로토콜입니다.** 한쪽만 필드를 늘리면 그 뒤의 값이 전부 밀려
 읽히고, 컴파일은 통과하므로 실행 중에야 드러납니다.
 
-#### `Network/IPlayerLink.cs` — 어셈블리 경계선
+#### `Network/IPlayerLink.cs`: 어셈블리 경계선
 
 `internal` 인터페이스입니다. **이 파일의 존재 이유가 `internal` 키워드 하나에 있습니다.**
 
 `PlayerHandle` 은 상위 계층에 공개되지만, 그 뒤에서 실제 일을 하는 `NetworkPlayer` 는
-`NetworkBehaviour` 파생이라 밖으로 나갈 수 없습니다. 핸들이 구현체를 붙잡는 통로가
-필요한데, 그 통로의 타입이 `public` 이면 다시 밖으로 새어 나갑니다.
+`NetworkBehaviour` 파생이라 밖으로 나갈 수 없습니다. 핸들이 구현체를 참조하는 통로가
+필요한데, 그 통로의 타입이 `public` 이면 다시 어셈블리 밖으로 노출됩니다.
 
 C++ 로 옮기면 이렇습니다.
 
@@ -360,15 +360,15 @@ class IPlayerLink { virtual void SubmitInput(...) = 0; };
 `internal` 이 "설치하지 않는 헤더"에 해당합니다. C# 에는 헤더가 없으므로 접근 지정자가
 그 역할을 합니다.
 
-델리게이트(`Action`) 세 개를 물리지 않고 인터페이스로 묶은 이유는, **셋 중 하나만 null 인
+델리게이트(`Action`) 세 개를 개별적으로 연결하지 않고 인터페이스로 묶은 이유는, **셋 중 하나만 null 인
 상태를 만들 수 없게 하기 위해서**입니다. 인터페이스는 구현체가 전부 제공하는 것을
 컴파일 시점에 강제합니다.
 
 ### 재작성한 파일
 
-#### `Network/PlayerHandle.cs` — 식별자에서 상태 운반체로
+#### `Network/PlayerHandle.cs`: 식별자에서 상태 운반체로
 
-이슈 #5 에서는 `GameObject`, `OwnerId`, `IsLocalOwner`, `SpawnIndex` 만 든 값 꾸러미였습니다.
+이슈 #5 에서는 `GameObject`, `OwnerId`, `IsLocalOwner`, `SpawnIndex` 만 담은 값 묶음이었습니다.
 이번에 **양방향 통로**가 됐습니다.
 
 | 방향 | 메서드 | 누가 부르나 |
@@ -385,17 +385,17 @@ class IPlayerLink { virtual void SubmitInput(...) = 0; };
 internal PlayerHandle(GameObject gameObject, ulong ownerId, ..., IPlayerLink link)
 ```
 
-`_link` 없이 만들어진 핸들이 레지스트리에 섞이면 `SendInput` 에서 널 참조가 납니다.
-**만들 수 있는 경로를 NGO 스폰 하나로 못박아** 그 상태 자체를 없앴습니다.
+`_link` 없이 만들어진 핸들이 레지스트리에 포함되면 `SendInput` 에서 널 참조 예외가
+발생합니다. **생성 경로를 NGO 스폰 하나로 고정해** 그 상태 자체를 없앴습니다.
 
-`IsClientAuthority` 를 필드가 아니라 프로퍼티로 매번 물어보는 것도 `NetworkPeer` 와 같은
+`IsClientAuthority` 를 필드가 아니라 프로퍼티로 매번 조회하는 것도 `NetworkPeer` 와 같은
 이유입니다. 권한 모드는 서버가 방송하는 값이라 언제든 바뀔 수 있고, 복사해두면
 어긋난 상태로 프레임이 도는 경로가 생깁니다.
 
 `ApplyNetState` 만 `internal` 입니다. **수신 상태를 쓰는 것은 NGO 콜백뿐이어야 하고,
 상위 계층은 읽기만 해야 합니다.** 프로퍼티가 `private set` 인 것과 짝을 이룹니다.
 
-#### `Network/NetworkPlayer.cs` — NGO 와 맞닿는 유일한 지점
+#### `Network/NetworkPlayer.cs`: NGO 와 직접 접하는 유일한 지점
 
 프리팹에 붙는 컴포넌트이고, **이 프로젝트에서 NGO API 를 실제로 호출하는 곳은 여기와
 `ConnectionLauncher` 뿐입니다.** 하는 일이 셋입니다.
@@ -426,16 +426,16 @@ public override void OnNetworkSpawn()
 값을 즉시 반영하지 않으면, 이미 이동해 있는 원격 캐릭터가 다음 값 변경 전까지 스폰
 위치에 서 있는 것으로 보입니다.
 
-**2. 입력을 서버로 나른다**
+**2. 입력을 서버로 전달한다**
 
 ```csharp
 [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
 private void SubmitInputRpc(NetworkInputCommand command)
 ```
 
-옛 `[ServerRpc(RequireOwnership = true)]` 가 두 축으로 갈라진 형태입니다.
+기존 `[ServerRpc(RequireOwnership = true)]` 가 두 축으로 분리된 형태입니다.
 `SendTo` 는 어디서 실행되는가, `InvokePermission` 은 누가 호출할 수 있는가.
-`Owner` 권한이 **서버 권위의 최소 방어선**이고, F2 로 남의 플레이어에 입력을 보내
+`Owner` 권한이 **서버 권위의 최소 방어선**이고, F2 로 다른 플레이어에게 입력을 보내
 `RpcException` 이 나는 것을 확인한 것이 이 줄의 관측 수단입니다.
 
 본문에 이번 이슈의 결함 수정이 들어 있습니다.
@@ -445,7 +445,7 @@ if (_hasInput) { received.JumpPressed |= _latestInput.JumpPressed; }
 ```
 
 입력은 60Hz 로 만들어지는데 NGO 전송 틱은 30Hz 라 서버가 한 프레임에 RPC 를 둘씩 받습니다.
-그냥 대입하면 뒤엣것이 앞엣것을 덮어쓰고, 그 사이에 틱이 안 돌았으면 점프가 소비 전에
+단순히 대입하면 뒤에 도착한 것이 앞의 것을 덮어쓰고, 그 사이에 틱이 돌지 않았으면 점프가 소비 전에
 사라집니다. 진단 경위는 `docs/ai-collab-log.md` 2026-08-17 항목에 있습니다.
 
 **근본 해결이 아닙니다.** 순서와 시각 정보는 여전히 버리고, 슬롯은 하나입니다.
@@ -460,14 +460,14 @@ private readonly NetworkVariable<Vector2> _position = new NetworkVariable<Vector
     NetworkVariableWritePermission.Server);
 ```
 
-권한이 타입 인자가 아니라 생성자 인자입니다. **쓰기 권한을 서버로 못박으면 클라이언트가
+권한이 타입 인자가 아니라 생성자 인자입니다. **쓰기 권한을 서버로 고정하면 클라이언트가
 대입해도 NGO 가 막습니다.** 위치와 방향만 보내는 것은 `PlayerState` 전체를 보내려면
 Core 에 NGO 직렬화를 붙여야 하기 때문이고, 그리는 데 실제로 필요한 값도 이 둘뿐입니다.
 
 `_clientAuthority` 의 쓰기 권한도 서버입니다. Owner 로 열면 **클라이언트가 자기 권한을
 스스로 올릴 수 있게 됩니다.** 개발용 토글이라도 이 구조는 지켰습니다.
 
-#### `Game/TickDriver.cs` — 역할이 갈라진 틱 루프
+#### `Game/TickDriver.cs`: 역할에 따라 나뉜 틱 루프
 
 가장 많이 바뀌었습니다. 1인용 루프가 **피어 역할에 따라 다르게 도는 루프**가 됐습니다.
 
@@ -481,7 +481,7 @@ private static bool IsSimulatedHere(PlayerSimEntry entry, bool isServer)
 ```
 
 **이 판단이 정확히 하나의 시뮬레이터를 지정한다는 것**이 전부입니다. 둘이 되면 서로
-위치를 덮어쓰며 캐릭터가 떨고, 영이 되면 아무도 안 움직입니다. 시뮬레이션 루프와
+위치를 덮어쓰면서 캐릭터에 떨림이 생기고, 영이 되면 아무도 움직이지 않습니다. 시뮬레이션 루프와
 렌더 루프가 이 함수 하나를 공유하므로 둘이 어긋날 수 없습니다.
 
 `PlayerSimEntry` 가 `class` 인 것을 다시 보세요. 2 절의 방어적 복사와 같은 이야기입니다.
@@ -508,27 +508,27 @@ else
 | `LastSentInputTick` | 멈춰 있으면 입력 송신이 끊긴 것 |
 | `LocalReceivedInputTick` | 서버에서 멈춰 있으면 RPC 가 도달하지 않는 것 |
 
-**증상 하나에 원인 후보가 여럿일 때 어디를 먼저 보는지**를 값으로 갈라놓은 것입니다.
+**증상 하나에 원인 후보가 여럿일 때 어디를 먼저 보는지**를 값으로 구분해 둔 것입니다.
 
-`_accumulator` 위의 경고 주석은 지우지 마세요. 2 절의 방어적 복사 함정이고, Rider 가
+`_accumulator` 위의 경고 주석은 삭제하지 마세요. 2 절의 방어적 복사 함정이고, Rider 가
 `readonly` 로 만들라고 계속 제안합니다.
 
 ### 부분 수정
 
-#### `Game/ConnectionHud.cs` — 개발용 조작 패널
+#### `Game/ConnectionHud.cs`: 개발용 조작 패널
 
-F2 소유권 테스트와 F3 권한 전환이 추가됐습니다. IMGUI 인 이유는 며칠 뒤 지울 UI 에
+F2 소유권 테스트와 F3 권한 전환이 추가됐습니다. IMGUI 인 이유는 며칠 뒤 삭제할 UI 에
 Canvas 배선과 씬 YAML 오염을 감수할 이유가 없어서입니다.
 
-**F1/F2/F3 는 Game 뷰에 포커스가 있어야 먹습니다.** IMGUI 키 이벤트라서 그렇고,
+**F1/F2/F3 는 Game 뷰에 포커스가 있어야 동작합니다.** IMGUI 키 이벤트라서 그렇고,
 촬영 중 인스펙터를 클릭하면 반응하지 않습니다. 2 절 리뷰의 사소한 항목입니다.
 
 `RebuildStatusText` 가 상태 변화 시에만 도는 것에 주의하세요. `OnGUI` 는 프레임당 여러 번
 호출되므로 거기서 문자열을 조립하면 초당 수백 개의 문자열이 힙에 쌓입니다.
 
-#### `Editor/TickDriverEditor.cs` — 읽기 전용 인스펙터
+#### `Editor/TickDriverEditor.cs`: 읽기 전용 인스펙터
 
-에디터 전용 어셈블리라 빌드에 포함되지 않습니다. `#if UNITY_EDITOR` 대신 폴더로 가르는
+에디터 전용 어셈블리라 빌드에 포함되지 않습니다. `#if UNITY_EDITOR` 대신 폴더로 구분하는
 방식이며, 자체 엔진에서 툴 코드를 별도 프로젝트로 분리하던 것과 같습니다.
 
 `EditorGUI.DisabledScope(true)` 로 감싼 것이 요점입니다. **시뮬레이션 상태를 에디터에서
@@ -560,9 +560,9 @@ public override bool RequiresConstantRepaint() => Application.isPlaying;
 | Presentation | `IPlayerPresenter` | 렌더 인터페이스 |
 | Presentation | `PlayerPresenter` | 보간 결과를 Transform 에 반영. 기즈모 |
 | Network | `ConnectionLauncher` | NGO 접속 시작과 종료 래퍼 |
-| Network | `PlayerRegistry` | 스폰된 플레이어 목록. 등록은 아래서, 구독은 위에서 |
+| Network | `PlayerRegistry` | 스폰된 플레이어 목록. 등록은 아래에서, 구독은 위에서 |
 | Game | `CharacterTuningAsset` | ScriptableObject. 인스펙터에서 만지는 데이터 |
 
-`SimulationWorld` 가 위임만 하는 껍데기로 남아 있는 것은 의도입니다. **여러 플레이어를
+`SimulationWorld` 가 위임만 하는 형태로 남아 있는 것은 의도입니다. **여러 플레이어를
 정해진 순서로 진행시키는 자리**이고, 밀치기나 충돌이 들어오면 그 순서가 곧 결정성입니다.
 지금 `TickDriver` 가 하고 있는 순회를 그때 여기로 내립니다.
