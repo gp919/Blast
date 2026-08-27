@@ -23,18 +23,23 @@ namespace Blast.Game
         fileName = "CharacterTuning", menuName = "Blast/Character Tuning", order = 0)]
     public sealed class CharacterTuningAsset : ScriptableObject
     {
-        // 기본값은 CharacterTuning.Default 와 같습니다. 새 애셋을 만들면
-        // 리팩터링 이전 상수와 동일한 감각에서 출발합니다.
+        // 기본값은 Pixel Adventure 캐릭터(키 0.32 유닛) 기준으로 역산한 값입니다.
+        // Simulation 의 CharacterTuning.Default 와는 일부러 다릅니다. 그쪽은 애셋이
+        // 없을 때의 대체값이자 EditMode 테스트의 기준선이라 건드리지 않습니다.
+        //
+        // 주의: 여기 초기화 값을 바꿔도 **이미 만들어진 애셋에는 반영되지 않습니다.**
+        // 직렬화된 값은 애셋 파일이 들고 있고, 이 식은 인스턴스를 새로 만들 때만
+        // 실행됩니다. 기존 애셋을 바꾸려면 Inspector 에서 직접 고쳐야 합니다.
 
         [Header("이동")]
-        [SerializeField] private float _moveSpeedPerSecond = 8f;
+        [SerializeField] private float _moveSpeedPerSecond = 1.12f;
 
         [Header("중력. 아래 방향이므로 음수")]
-        [SerializeField] private float _gravityPerSecond = -30f;
-        [SerializeField] private float _terminalFallSpeed = -20f;
+        [SerializeField] private float _gravityPerSecond = -9.14f;
+        [SerializeField] private float _terminalFallSpeed = -6.4f;
 
         [Header("점프")]
-        [SerializeField] private float _jumpSpeedPerSecond = 13f;
+        [SerializeField] private float _jumpSpeedPerSecond = 3.2f;
 
         // 60Hz 기준 6틱이면 100ms. byte 는 인스펙터에서 다루기 불편해
         // int 로 받고 변환 시점에 좁힙니다.

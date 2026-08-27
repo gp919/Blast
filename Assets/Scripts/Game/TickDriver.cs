@@ -455,14 +455,18 @@ namespace Blast.Game
                     // 이쪽은 60Hz 틱과 화면 프레임레이트가 맞지 않는 문제를 푸는 것이고,
                     // 네트워크와 무관합니다. 이것까지 없애면 한 프레임에 틱이
                     // 1 번, 2 번, 0 번 도는 편차가 그대로 화면에 떨림으로 나옵니다.
-                    entry.Presenter.Render(entry.PreviousState, entry.State, alpha);
+                    entry.Presenter.Render(entry.PreviousState, entry.State, alpha, true);
                 }
                 else
                 {
                     // 이쪽이 이번 이슈에서 일부러 비워둔 자리입니다. 30Hz 로 도착한
                     // 위치를 보간 없이 그대로 그립니다. 같은 상태를 두 번 넘겨
                     // 알파를 무의미하게 만듭니다. 3주차 스냅샷 보간이 여기 들어옵니다.
-                    entry.Presenter.Render(entry.State, entry.State, 0f);
+                    //
+                    // 마지막 인자가 거짓인 것이 프리젠터에게 "이 상태는 위치와 방향만
+                    // 채워져 있다"고 알리는 신호입니다. 속도와 접지를 그대로 믿으면
+                    // 원격 캐릭터가 움직이면서 idle 로 굳습니다.
+                    entry.Presenter.Render(entry.State, entry.State, 0f, false);
                 }
             }
         }
