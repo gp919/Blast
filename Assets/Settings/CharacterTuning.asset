@@ -17,6 +17,6 @@ MonoBehaviour:
   _terminalFallSpeed: -20
   _jumpSpeedPerSecond: 8
   _coyoteTicks: 6
-  _boxSize: {x: 0.4, y: 0.5}
+  _boxSize: {x: 0.24, y: 0.32}
   _skinWidth: 0.02
   _minGroundNormalY: 0.5

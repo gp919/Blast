@@ -4,6 +4,7 @@
     "references": [
         "Blast.Core",
         "Blast.Simulation",
+        "Blast.Presentation",
         "Blast.Game"
     ],
     "includePlatforms": [
