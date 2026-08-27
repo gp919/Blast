@@ -14,10 +14,61 @@ namespace Blast.Editor
     [CustomEditor(typeof(TickDriver))]
     public sealed class TickDriverEditor : UnityEditor.Editor
     {
-        // Play 중에만 매 프레임 다시 그립니다. 편집 중에는 갱신할 것이 없습니다.
-        public override bool RequiresConstantRepaint()
+        // 매 프레임 다시 그리지 않고 초당 10회로 제한합니다. 근거는
+        // InspectorRepaintThrottle 주석 참조.
+        private InspectorRepaintThrottle _repaintThrottle;
+
+        // 갱신 간격을 늘리면 순간적으로만 나타나는 값을 놓칩니다. 틱 수가 한
+        // 프레임 동안만 상한에 붙었다가 돌아오면 화면에는 잡히지 않습니다.
+        // 그래서 표시와 관측을 분리합니다. 그리는 것은 초당 10회로 줄이되,
+        // 값을 읽는 것은 에디터 갱신 주기마다 계속합니다. 정수 비교 두 번이라
+        // 비용이 사실상 없습니다.
+        //
+        // 에디터 갱신이 게임 프레임과 정확히 1대1로 대응한다는 보장은 없으므로
+        // 이 값은 표본입니다. 다만 인스펙터가 그려지는 시점에만 읽는 것보다는
+        // 훨씬 촘촘합니다.
+        private int _peakTickCount;
+        private bool _sawTickCap;
+
+        private void OnEnable()
         {
-            return Application.isPlaying;
+            _repaintThrottle = new InspectorRepaintThrottle(this, 0.1);
+            _repaintThrottle.Enable();
+            EditorApplication.update += SampleTickCount;
+        }
+
+        private void OnDisable()
+        {
+            EditorApplication.update -= SampleTickCount;
+            _repaintThrottle.Disable();
+        }
+
+        private void SampleTickCount()
+        {
+            // Play 를 벗어나면 지난 세션의 관측값을 들고 있을 이유가 없습니다.
+            if (!Application.isPlaying)
+            {
+                _peakTickCount = 0;
+                _sawTickCap = false;
+                return;
+            }
+
+            TickDriver driver = target as TickDriver;
+            if (driver == null)
+            {
+                return;
+            }
+
+            int ticks = driver.LastFrameTickCount;
+            if (ticks > _peakTickCount)
+            {
+                _peakTickCount = ticks;
+            }
+
+            if (ticks >= SimulationConstants.MaxTicksPerFrame)
+            {
+                _sawTickCap = true;
+            }
         }
 
         public override void OnInspectorGUI()
@@ -47,6 +98,10 @@ namespace Blast.Editor
                 EditorGUILayout.Toggle("로컬 플레이어 스폰됨", driver.HasLocalPlayer);
                 EditorGUILayout.LabelField("틱", driver.CurrentTick.ToString());
                 EditorGUILayout.LabelField("이번 프레임 틱 수", driver.LastFrameTickCount.ToString());
+
+                // 표시 간격 사이에 지나간 최대치입니다. 프레임이 튄 흔적은
+                // 여기에만 남습니다.
+                EditorGUILayout.LabelField("관측 최대 틱 수", _peakTickCount.ToString());
                 EditorGUILayout.LabelField("알파", driver.Alpha.ToString("F3"));
                 EditorGUILayout.LabelField("누산기 잔여", driver.AccumulatorRemainder.ToString("F5"));
 
@@ -89,13 +144,23 @@ namespace Blast.Editor
                     MessageType.None);
             }
 
-            // 이번 프레임 틱 수가 상한에 계속 붙어 있으면 시뮬레이션이 프레임을
-            // 따라가지 못하고 시간을 버리는 중이라는 뜻입니다.
-            if (driver.LastFrameTickCount >= SimulationConstants.MaxTicksPerFrame)
+            // 틱 수가 상한에 닿으면 시뮬레이션이 프레임을 따라가지 못하고 누산
+            // 시간을 버립니다. 한 번이라도 닿았으면 계속 알립니다. 순간적으로
+            // 지나간 사건을 놓치면 원인을 되짚을 단서가 사라지기 때문입니다.
+            if (_sawTickCap)
             {
                 EditorGUILayout.HelpBox(
-                    "프레임당 틱 수가 상한에 걸렸습니다. 누산 시간이 버려지고 있습니다.",
+                    "프레임당 틱 수가 상한에 걸린 적이 있습니다. 그 프레임에서는 누산 시간이 "
+                    + "버려졌습니다. 인스펙터나 프로파일러 같은 에디터 창을 열어둔 것만으로도 "
+                    + "발생할 수 있으므로, 성능을 판단할 때는 창을 닫고 다시 보세요.",
                     MessageType.Warning);
+            }
+
+            // 조건을 바꾼 뒤 다시 관측하려면 기준점을 새로 잡아야 합니다.
+            if (GUILayout.Button("관측값 초기화"))
+            {
+                _peakTickCount = 0;
+                _sawTickCap = false;
             }
         }
     }

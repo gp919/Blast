@@ -55,9 +55,48 @@ namespace Blast.Editor
         private const float RecommendedApexTimeMin = 0.30f;
         private const float RecommendedApexTimeMax = 0.40f;
 
-        public override bool RequiresConstantRepaint()
+        // 매 프레임 다시 그리지 않고 초당 10회로 제한합니다. 근거는
+        // InspectorRepaintThrottle 주석 참조.
+        private InspectorRepaintThrottle _repaintThrottle;
+
+        // AssetDatabase.FindAssets 는 프로젝트의 애셋 데이터베이스 전체를 타입
+        // 조건으로 질의합니다. 결과가 항상 같은데도 인스펙터가 그려질 때마다
+        // 반복하면 프레임 시간을 통째로 잡아먹습니다. 한 번 찾은 참조를 들고
+        // 있으면 애셋의 값이 바뀌어도 그대로 최신 값이 읽히므로, 다시 찾아야 하는
+        // 경우는 애셋이 새로 생성되거나 삭제되었을 때뿐입니다.
+        private CharacterTuningAsset _cachedTuningAsset;
+
+        // Animator.parameters 는 호출할 때마다 새 배열을 할당해 돌려주는
+        // 프로퍼티입니다. 파라미터 목록은 런타임에 바뀌지 않으므로 Animator
+        // 참조가 달라질 때만 다시 읽습니다.
+        private Animator _cachedAnimator;
+        private AnimatorControllerParameter[] _cachedParameters;
+
+        // 문자열로 프로퍼티를 찾는 비용도 그려질 때마다 낼 이유가 없습니다.
+        private SerializedProperty _animatorProperty;
+        private SerializedProperty _spriteRendererProperty;
+
+        private void OnEnable()
         {
-            return Application.isPlaying;
+            _animatorProperty = serializedObject.FindProperty("_animator");
+            _spriteRendererProperty = serializedObject.FindProperty("_spriteRenderer");
+
+            TryLoadTuningAsset(out _cachedTuningAsset);
+
+            _repaintThrottle = new InspectorRepaintThrottle(this, 0.1);
+            _repaintThrottle.Enable();
+        }
+
+        private void OnDisable()
+        {
+            _repaintThrottle.Disable();
+
+            // 다음에 인스펙터가 열릴 때 다시 찾습니다. 그 사이에 애셋이 지워졌을
+            // 수 있고, 도메인 리로드를 건너뛰는 설정에서는 참조가 남아 있어도
+            // 무효해질 수 있습니다.
+            _cachedTuningAsset = null;
+            _cachedAnimator = null;
+            _cachedParameters = null;
         }
 
         public override void OnInspectorGUI()
@@ -71,7 +110,7 @@ namespace Blast.Editor
             // 넣어주면 초록 상자가 진실을 그립니다. 런타임 코드는 여전히 애셋을
             // 모르고, 여기서 넣은 값은 직렬화되지 않습니다.
             CharacterTuning tuning = CharacterTuning.Default;
-            bool hasTuningAsset = TryLoadTuningAsset(out CharacterTuningAsset tuningAsset);
+            bool hasTuningAsset = TryGetTuningAsset(out CharacterTuningAsset tuningAsset);
             if (hasTuningAsset)
             {
                 tuning = tuningAsset.ToTuning();
@@ -130,7 +169,9 @@ namespace Blast.Editor
 
             // 프리젠터가 실제로 물고 있는 Animator 를 봅니다. 계층에서 찾아오면
             // 배선이 틀렸을 때도 옆에 있는 Animator 값이 보여서 정상으로 착각합니다.
-            Animator animator = serializedObject.FindProperty("_animator").objectReferenceValue as Animator;
+            Animator animator = _animatorProperty != null
+                ? _animatorProperty.objectReferenceValue as Animator
+                : null;
             if (animator == null || animator.runtimeAnimatorController == null)
             {
                 EditorGUILayout.HelpBox(
@@ -142,7 +183,7 @@ namespace Blast.Editor
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Animator 파라미터", EditorStyles.boldLabel);
 
-            AnimatorControllerParameter[] parameters = animator.parameters;
+            AnimatorControllerParameter[] parameters = GetParameters(animator);
             if (parameters.Length == 0)
             {
                 EditorGUILayout.HelpBox(
@@ -214,8 +255,9 @@ namespace Blast.Editor
                 return;
             }
 
-            SpriteRenderer spriteRenderer =
-                serializedObject.FindProperty("_spriteRenderer").objectReferenceValue as SpriteRenderer;
+            SpriteRenderer spriteRenderer = _spriteRendererProperty != null
+                ? _spriteRendererProperty.objectReferenceValue as SpriteRenderer
+                : null;
             if (spriteRenderer == null || !presenter.TryGetVisualBounds(out Bounds bounds))
             {
                 EditorGUILayout.HelpBox(
@@ -424,6 +466,42 @@ namespace Blast.Editor
             PrefabUtility.RecordPrefabInstancePropertyModifications(visual);
             EditorUtility.SetDirty(visual);
             SceneView.RepaintAll();
+        }
+
+        // 캐시된 튜닝 애셋을 돌려줍니다. 캐시가 비어 있을 때만 다시 찾습니다.
+        private bool TryGetTuningAsset(out CharacterTuningAsset asset)
+        {
+            if (_cachedTuningAsset != null)
+            {
+                asset = _cachedTuningAsset;
+                return true;
+            }
+
+            // Play 중에는 애셋이 새로 만들어지지 않습니다. 여기서 재조회를 허용하면
+            // 애셋이 없는 프로젝트에서 매 프레임 전체 검색이 돌게 됩니다.
+            if (Application.isPlaying)
+            {
+                asset = null;
+                return false;
+            }
+
+            bool found = TryLoadTuningAsset(out _cachedTuningAsset);
+            asset = _cachedTuningAsset;
+            return found;
+        }
+
+        // Animator 참조가 그대로면 이전에 읽어둔 배열을 그대로 씁니다.
+        // 이 프로젝트는 런타임에 Animator Controller 를 교체하지 않으므로
+        // 참조 비교만으로 충분합니다.
+        private AnimatorControllerParameter[] GetParameters(Animator animator)
+        {
+            if (_cachedAnimator != animator || _cachedParameters == null)
+            {
+                _cachedAnimator = animator;
+                _cachedParameters = animator.parameters;
+            }
+
+            return _cachedParameters;
         }
 
         // 튜닝 애셋은 프로젝트에 하나뿐이어야 합니다. 여럿이면 어느 것이 빌드에
