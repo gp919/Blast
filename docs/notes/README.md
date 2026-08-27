@@ -27,6 +27,7 @@ issue-<번호 두 자리>-<짧은-영문-설명>.md
 | 이슈 | 날짜 | 다룬 개념 |
 |---|---|---|
 | [#7 나이브 위치 동기화](issue-07-naive-position-sync.md) | 2026-08-17 | 어셈블리와 링크, MonoBehaviour 수명주기, 값 타입과 참조 타입, 방어적 복사, GC, 이벤트, ILPP 와 RPC, 에셋 GUID |
+| [#9 캐릭터 애니메이션과 Sorting Layer](issue-09-character-animation.md) | 2026-08-27 | Animator 상태 기계와 파라미터, 트리거와 멱등성, PPtr 커브, 스프라이트 임포트와 슬라이스, 직렬화 기본값의 비소급성, Sorting Layer, 축척과 튜닝 역산 |
 
 ## 미해결로 넘어간 것
 
@@ -36,3 +37,5 @@ issue-<번호 두 자리>-<짧은-영문-설명>.md
 |---|---|---|
 | 접속 전 점프 래치가 스폰 직후 발동 | [#7](issue-07-naive-position-sync.md) | 3주차 예측 전 |
 | 재접속 경로 미확인. `PlayerRegistry.Clear()` 호출부 없음 | [#7](issue-07-naive-position-sync.md) | 3주차 예측 전 |
+| 튜닝 애셋에 새 속도 값이 반영되지 않음 (코드 기본값만 바뀜) | [#9](issue-09-character-animation.md) | **#10 촬영 전** |
+| Sorting Layer 이름 오타 `BackGround` | [#9](issue-09-character-animation.md) | 아무 때나 |
