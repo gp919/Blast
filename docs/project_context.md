@@ -238,10 +238,10 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
 > **작업하면서 직접 갱신하세요.** 새 챗을 열 때 현재 위치를 파악하는 근거가 됩니다.
 
 **현재 주차**: 2주차
-**현재 작업 항목**: 이슈 #9 캐릭터 애니메이션 완료. 다음은 **이슈 #10** — Network
-Simulator 배선, 지연 조건 문제 상황 영상 2종, 기준선 대역폭 측정. 마일스톤 M2.
-**촬영 전에 튜닝 애셋의 속도 값을 새 축척에 맞춰야 합니다** (`docs/notes/README.md`
-미해결 표 참조)
+**현재 작업 항목**: 이슈 #9 캐릭터 애니메이션을 완료했습니다. 다음은 **이슈 #10**
+이며, Network Simulator 배선과 지연 조건 문제 상황 영상 2종, 기준선 대역폭 측정을
+다룹니다. 마일스톤은 M2 입니다. **촬영 전에 튜닝 애셋의 속도 값을 새 축척에 맞춰야
+합니다** (`docs/notes/README.md` 의 미해결 표를 참조하세요)
 
 이슈 #7 에서 확정한 것 두 가지입니다. 3주차까지 유효합니다.
 
@@ -348,29 +348,29 @@ Simulator 배선, 지연 조건 문제 상황 영상 2종, 기준선 대역폭 �
 
 **프리젠테이션 (2주차 C 선행, 이슈 #9)**
 
-촬영용 그림을 갖추는 작업입니다. 시뮬레이션은 한 줄도 바뀌지 않았습니다.
+촬영에 사용할 화면을 갖추는 작업입니다. 시뮬레이션은 한 줄도 바뀌지 않았습니다.
 
-- 캐릭터 애셋 **Pixel Adventure 1 / Mask Dude** 확정. SPUM 을 검토했다가 철회했다
-  (사유는 `docs/notes/issue-09-character-animation.md` 4절)
-- `Presentation/PlayerPresenter` — 애니메이션을 `PlayerState` 에서 파생시킨다.
-  `Animator.SetTrigger` 는 쓰지 않는다. 재조정이 되감은 구간에서 다시 발사되어
-  한 번 뛴 점프에 모션이 여러 번 나오기 때문이다
-- 원격 캐릭터는 위치와 방향만 받으므로 속도와 접지를 **렌더 위치 델타로 추정**한다.
+- 캐릭터 애셋을 **Pixel Adventure 1 / Mask Dude** 로 확정했다. SPUM 은 검토했다가
+  철회했다 (사유는 `docs/notes/issue-09-character-animation.md` 4절)
+- `Presentation/PlayerPresenter`: 애니메이션을 `PlayerState` 에서 파생시킨다.
+  `Animator.SetTrigger` 는 쓰지 않는다. 재조정이 되감은 구간에서 다시 발동되어
+  한 번만 실행한 점프인데도 모션이 여러 번 나오기 때문이다
+- 원격 캐릭터는 위치와 방향만 전송받으므로 속도와 접지를 **렌더 위치 델타로 추정**한다.
   전송 필드를 늘리지 않은 것은 이슈 #10 의 기준선 대역폭을 오염시키지 않기 위해서다
-- `IPlayerPresenter.Render` 에 `stateIsSimulatedHere` 인자 추가. 상태의 어느 필드까지
-  믿어도 되는지를 호출부가 알린다
-- `Editor/PlayerPresenterEditor` — Animator 파라미터 실값 나열, 충돌 박스를
-  스프라이트에서 파생, 튜닝을 캐릭터 키 비율로 진단
-- Animator Controller 는 Any State 에서 4갈래 전이. 파라미터는
-  `Speed`(float) / `IsGrounded`(bool) / `VerticalVelocity`(float) 셋뿐
-- Sorting Layer 를 `BackGround` / `Ground` / `Character` 로 분리
+- `IPlayerPresenter.Render` 에 `stateIsSimulatedHere` 인자를 추가했다. 상태의 어느
+  필드까지 믿어도 되는지를 호출부가 알린다
+- `Editor/PlayerPresenterEditor`: Animator 파라미터의 실제 값을 나열하고, 충돌 박스를
+  스프라이트에서 파생시키며, 튜닝을 캐릭터 키 비율로 진단한다
+- Animator Controller 는 Any State 에서 네 갈래로 전이한다. 파라미터는
+  `Speed`(float) / `IsGrounded`(bool) / `VerticalVelocity`(float) 세 개뿐이다
+- Sorting Layer 를 `BackGround` / `Ground` / `Character` 로 분리했다
 
 **검증 수단**
-- `tools/check-layering.ps1` — asmdef 참조 방향 + Simulation 금지 심볼
-- `Tests/EditMode` — 누산기 시간 보존, 클램프, 결정성, 프레임레이트 무관성 12개 케이스
-- `Editor/PlayerPresenterEditor` — Animator 파라미터 실값, 애니메이션 소스(시뮬 / 추정),
+- `tools/check-layering.ps1`: asmdef 참조 방향 + Simulation 금지 심볼
+- `Tests/EditMode`: 누산기 시간 보존, 클램프, 결정성, 프레임레이트 무관성 12개 케이스
+- `Editor/PlayerPresenterEditor`: Animator 파라미터의 실제 값, 애니메이션 소스(시뮬레이션 / 추정),
   추정 속도, 충돌 박스와 스프라이트 크기, 튜닝을 캐릭터 키로 나눈 진단
-- `Editor/TickDriverEditor` — Play 중 시뮬레이션 상태 읽기 전용 표시.
+- `Editor/TickDriverEditor`: Play 중 시뮬레이션 상태 읽기 전용 표시.
   권한 모드, 여기서 시뮬레이션 중인 캐릭터 수, 송신 및 수신 입력 틱
 - `Game/ConnectionHud`: F1 표시 전환, F2 소유권 검사 테스트, F3 권한 모드 전환
 - RNSM (`Assets/Settings/NetStatsMonitorConfiguration.asset`): 런타임 RTT 와 대역폭 표시
@@ -410,17 +410,18 @@ Simulator 배선, 지연 조건 문제 상황 영상 2종, 기준선 대역폭 �
   입력입니다. 나이브 구현의 낭비이며 일부러 남겨둔 것입니다. 2주차 C 기준선
   대역폭에 그대로 잡히고, 그 숫자가 3주차 최적화의 비교 대상이 됩니다.
 - **`Assets/PixelPack03_Free` 의 PNG 는 의도적으로 삭제했습니다** (2026-08-27).
-  타일셋을 Pixel Adventure 의 Terrain 으로 갈아탔습니다. 폴더에 남은 `.asset` 타일
-  6개는 삭제된 PNG 를 가리키는 껍데기라 쓰이지 않습니다.
-- **SPUM 은 검토 후 철회했습니다** (2026-08-27). 저장소에 흔적이 남아 있으면
-  안 됩니다. 다시 도입하자는 이야기가 나오면 `docs/notes/issue-09-character-animation.md`
-  4절을 먼저 읽으세요. 전역 `enum PlayerState` 가 `Blast.Core.PlayerState` 와
-  충돌하는 문제와, asmdef 가 없어 상위 계층에서 호출 자체가 불가능한 문제가 있습니다.
-- **캐릭터 튜닝 값은 캐릭터 키 대비 비율로 잡습니다** (2026-08-27). 절대 수치는
+  타일셋을 Pixel Adventure 의 Terrain 으로 교체했습니다. 폴더에 남은 `.asset` 타일
+  6개는 삭제된 PNG 를 가리키고 있어서 실제로는 사용되지 않습니다.
+- **SPUM 은 검토한 뒤에 철회했습니다** (2026-08-27). SPUM 전용 코드가 저장소에
+  남아 있으면 안 됩니다. 다시 도입하자는 이야기가 나오면
+  `docs/notes/issue-09-character-animation.md` 4절을 먼저 읽으세요. 전역
+  `enum PlayerState` 가 `Blast.Core.PlayerState` 와 충돌하는 문제와, asmdef 가 없어서
+  상위 계층에서 호출 자체가 불가능한 문제가 있습니다.
+- **캐릭터 튜닝 값은 캐릭터 키 대비 비율로 관리합니다** (2026-08-27). 절대 수치는
   축척이 바뀌면 의미가 사라집니다. `PlayerPresenter` 인스펙터의 "튜닝 진단" 절이
-  현재 값을 키 비율로 환산해 보여주고, 범위를 벗어나면 역산한 출발값을 제안합니다.
+  현재 값을 키 비율로 환산해서 보여주고, 범위를 벗어나면 역산한 시작 값을 제안합니다.
 - **`[SerializeField]` 초기화 값을 바꿔도 이미 만들어진 애셋에는 반영되지 않습니다.**
-  직렬화된 값은 애셋 파일이 들고 있고, 초기화 식은 인스턴스를 새로 만들 때만
+  직렬화된 값은 애셋 파일에 저장되어 있고, 초기화 식은 인스턴스를 새로 만들 때만
   실행됩니다. 튜닝을 바꿀 때는 코드가 아니라 Inspector 에서 애셋을 고치세요.
 - **Enter Play Mode Options 의 Domain Reload 를 켰습니다** (2026-08-11 변경).
   `EditorSettings.asset` 의 `m_EnterPlayModeOptions` 를 1 에서 0 으로 바꿨습니다.
@@ -448,9 +449,9 @@ Simulator 배선, 지연 조건 문제 상황 영상 2종, 기준선 대역폭 �
 | 프레임 시간 상한 | **0.25초** | 누산 전에 자름 |
 | 코요테 타임 | **6틱 (100ms)** | |
 | 스프라이트 PPU | **100 (전 애셋 통일)** | 2026-08-27 확정. "몇 픽셀이 1 유닛인가"를 정하는 축척 상수다. 캐릭터 32px = 0.32 유닛, 타일 16px = 0.16 유닛이므로 캐릭터가 정확히 2타일이다 |
-| 충돌 박스 | **0.24 x 0.32** | 2026-08-27 확정. 스프라이트에서 파생시켰다. 폭은 스프라이트 칸의 0.75 배 — 32px 칸 안에서 캐릭터가 24px 이고 팔은 벽에 닿아도 되기 때문. 높이는 1.0 배 — 발끝이 칸 바닥에 붙어 있어 박스 바닥과 자동으로 일치한다 |
-| 점프 정점 | **캐릭터 키의 1.5 ~ 2.0 배** | 절대 수치가 아니라 비율로 관리한다. 축척이 바뀌어도 감각이 유지된다 |
-| 정점 도달 시간 | **0.30 ~ 0.40 초** | 이것만은 절대 시간이다. 사람 손의 반응 속도에 묶여 있어 캐릭터 크기와 무관하다 |
+| 충돌 박스 | **0.24 x 0.32** | 2026-08-27 확정. 스프라이트에서 파생시켰다. 폭은 스프라이트 칸의 0.75 배인데, 32px 칸 안에서 캐릭터는 24px 이고 팔은 벽에 닿아도 되기 때문이다. 높이는 1.0 배인데, 발끝이 칸 바닥에 붙어 있어 박스 바닥과 자동으로 일치한다 |
+| 점프 정점 | **캐릭터 키의 1.5 ~ 2.0 배** | 절대 수치가 아니라 비율로 관리한다. 축척이 바뀌어도 조작 감각이 유지된다 |
+| 정점 도달 시간 | **0.30 ~ 0.40 초** | 이것만은 절대 시간이다. 사람 손의 반응 속도에 좌우되므로 캐릭터 크기와 무관하다 |
 | 이동 속도 | **초당 캐릭터 키의 3 ~ 4 배** | 위와 같은 이유로 비율 |
 | 스냅샷 전송 레이트 | **30Hz** | NGO `NetworkConfig.TickRate` 기본값. 2026-08-12 확정. 시뮬레이션 60Hz 와 별개다. 계산 주기가 아니라 송신 주기이며, 이 분리가 60Hz 를 택할 수 있는 근거다. 기준선 대역폭은 이 조건에서 측정한다 |
 | 보간 지연 버퍼 | 미정 | 100~200ms 범위 |
