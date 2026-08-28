@@ -380,7 +380,12 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
 - `Editor/TickDriverEditor`: Play 중 시뮬레이션 상태 읽기 전용 표시.
   권한 모드, 여기서 시뮬레이션 중인 캐릭터 수, 송신 및 수신 입력 틱
 - `Game/ConnectionHud`: F1 표시 전환, F2 소유권 검사 테스트, F3 권한 모드 전환
-- RNSM (`Assets/Settings/NetStatsMonitorConfiguration.asset`): 런타임 RTT 와 대역폭 표시
+- RNSM: 런타임 RTT 와 대역폭 표시. **`DevHud` 오브젝트에 이미 붙어 있고 화면 오른쪽에
+  그립니다.** 설정은 `Assets/Settings/NetStatsMonitorConfiguration.asset` 입니다.
+  컴포넌트를 새로 추가하면 패키지의 기본 설정이 자동으로 들어가 화면 왼쪽에 하나가
+  더 그려집니다. 붙이기 전에 씬에 이미 있는지 확인하세요
+- `Game/NetworkConditionController`: 지연 조건을 클라이언트 피어에만 적용. F4 로 전환하고
+  현재 조건을 HUD 에 표시
 
 ### 진행 중
 - (없음)
@@ -436,6 +441,12 @@ Start Server 버튼이 없습니다. 데디케이티드 서버는 스코프 밖�
   초기화되지 않았습니다. 틱 카운터나 싱글턴이 이전 Play 의 값을 그대로 유지하고 있으면 예측과
   재조정 디버깅이 불가능해집니다. Play 진입 속도를 되찾고 싶어지면 static 을 먼저
   제거하고 다시 끄세요.
+- **개발용 컴포넌트는 `DevHud` 오브젝트에 모여 있습니다** (2026-08-28 추가). 현재
+  `Game/ConnectionHud`, `Game/NetworkConditionController`, RNSM 셋이 붙어 있고,
+  `NetworkSimulator` 는 Play 중에 코드가 여기에 추가합니다. 관측 수단을 새로 붙이기
+  전에 **이 오브젝트의 컴포넌트 목록부터 확인하세요.** 실제로 RNSM 이 이미 붙어
+  있는데 `NetworkManager` 에 하나를 더 붙여서 화면 양쪽에 두 개가 그려진 적이
+  있습니다 (`docs/ai-collab-log.md` 2026-08-28 항목).
 - **네트워크 지연 조건은 클라이언트 피어에만 걸립니다** (2026-08-28 추가). MPPM 가상
   플레이어는 같은 씬을 로드하므로 Host 와 Client 양쪽에 조건이 걸리면 클라이언트가
   겪는 RTT 가 두 배가 됩니다. `Game/NetworkConditionController` 가 `NetworkPeer` 로
