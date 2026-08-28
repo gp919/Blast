@@ -18,9 +18,14 @@ namespace Blast.Game
     [DisallowMultipleComponent]
     public sealed class ConnectionHud : MonoBehaviour
     {
-        private const float PanelWidth = 240f;
-        private const float PanelHeight = 220f;
+        private const float PanelWidth = 260f;
+        private const float PanelHeight = 250f;
         private const float PanelMargin = 8f;
+
+        // 패널을 감췄을 때 조건 한 줄만 남기는 자리입니다. 줄바꿈 없이 한 줄에
+        // 들어가야 하므로 패널보다 넓게 잡습니다. 잘리면 영상에 수치가 반쪽만 남습니다.
+        private const float ConditionStripWidth = 420f;
+        private const float ConditionStripHeight = 18f;
 
         // 2주차 문제 상황 영상 촬영 때 화면을 가리지 않도록 끌 수 있게 둡니다.
         private const KeyCode ToggleKey = KeyCode.F1;
@@ -34,16 +39,35 @@ namespace Blast.Game
         // 2주차 C 비교 촬영에서 한 번에 두 조건을 담기 위한 개발 기능입니다.
         private const KeyCode AuthorityToggleKey = KeyCode.F3;
 
+        // 정상 조건과 지연 조건을 같은 세션 안에서 번갈아 보기 위한 키입니다.
+        private const KeyCode ConditionToggleKey = KeyCode.F4;
+
         private readonly ConnectionLauncher _launcher = new ConnectionLauncher();
         private readonly StringBuilder _statusBuilder = new StringBuilder(64);
+        private readonly StringBuilder _conditionBuilder = new StringBuilder(48);
 
         private string _statusText = string.Empty;
+
+        // 패널을 감춰도 남는 한 줄입니다. 영상에 조건 수치가 찍혀 있지 않으면 나중에
+        // 그 조건에서 찍었다고 주장할 근거가 없습니다.
+        private string _conditionText = string.Empty;
+
+        private NetworkConditionController _conditions;
         private bool _isVisible = true;
 
         private void Start()
         {
             _launcher.Attach();
             _launcher.StateChanged += RebuildStatusText;
+
+            // 같은 오브젝트에 붙어 있는 조건 컨트롤러를 찾습니다. 인스펙터 참조로 두면
+            // 씬 YAML 에 배선이 하나 더 생기는데, 개발용 HUD 와 개발용 조건 전환은
+            // 어차피 같은 오브젝트에 함께 있습니다.
+            _conditions = GetComponent<NetworkConditionController>();
+            if (_conditions != null)
+            {
+                _conditions.StateChanged += RebuildStatusText;
+            }
 
             // 스폰과 디스폰도 표시가 바뀌는 시점입니다. 이벤트로 받아야 OnGUI 에서
             // 매 프레임 레지스트리를 들여다보지 않습니다.
@@ -56,6 +80,12 @@ namespace Blast.Game
         private void OnDestroy()
         {
             _launcher.StateChanged -= RebuildStatusText;
+
+            if (_conditions != null)
+            {
+                _conditions.StateChanged -= RebuildStatusText;
+            }
+
             PlayerRegistry.PlayerSpawned -= HandleRegistryChanged;
             PlayerRegistry.PlayerDespawned -= HandleRegistryChanged;
             _launcher.Detach();
@@ -87,9 +117,23 @@ namespace Blast.Game
                 RequestAuthorityToggle();
                 current.Use();
             }
+            else if (current.type == EventType.KeyDown && current.keyCode == ConditionToggleKey)
+            {
+                if (_conditions != null)
+                {
+                    _conditions.Toggle();
+                }
+
+                current.Use();
+            }
 
             if (!_isVisible)
             {
+                // 패널을 감춰도 조건 한 줄은 남깁니다. 촬영할 때 화면을 비우려고 F1 을
+                // 누르는데, 그 순간 조건 표시까지 사라지면 영상만 남고 근거가 사라집니다.
+                GUI.Label(
+                    new Rect(PanelMargin, PanelMargin, ConditionStripWidth, ConditionStripHeight),
+                    _conditionText);
                 return;
             }
 
@@ -161,6 +205,8 @@ namespace Blast.Game
         // 같은 문자열을 새로 만들게 됩니다.
         private void RebuildStatusText()
         {
+            RebuildConditionText();
+
             _statusBuilder.Clear();
             _statusBuilder.Append(_launcher.Mode.ToString());
 
@@ -200,9 +246,54 @@ namespace Blast.Game
                 _statusBuilder.Append(localPlayer != null ? localPlayer.OwnerId.ToString() : "없음");
             }
 
-            _statusBuilder.Append("\nF1 표시  F2 소유권  F3 권한 전환");
+            _statusBuilder.Append('\n');
+            _statusBuilder.Append(_conditionText);
+
+            _statusBuilder.Append("\nF1 표시  F2 소유권  F3 권한  F4 지연");
 
             _statusText = _statusBuilder.ToString();
+        }
+
+        // 네트워크 조건 한 줄입니다. 패널 안과 패널을 감췄을 때 양쪽에서 같은 문자열을
+        // 씁니다. 표시하는 값은 이 피어가 시뮬레이터에 요청한 조건이며, 실제로 그만큼
+        // 걸렸는지는 RNSM 의 RTT 로 확인해야 합니다.
+        private void RebuildConditionText()
+        {
+            _conditionBuilder.Clear();
+            _conditionBuilder.Append("net ");
+
+            if (_conditions == null)
+            {
+                _conditionBuilder.Append("조건 컴포넌트 없음");
+            }
+            else if (!_conditions.IsSimulatorAttached)
+            {
+                _conditionBuilder.Append("시뮬레이터 없음");
+            }
+            else if (_conditions.IsActive)
+            {
+                _conditionBuilder.Append("지연 ");
+                _conditionBuilder.Append(NetworkConditionController.PacketDelayMs);
+                _conditionBuilder.Append("ms  지터 ");
+                _conditionBuilder.Append(NetworkConditionController.PacketJitterMs);
+                _conditionBuilder.Append("ms  손실 ");
+                _conditionBuilder.Append(NetworkConditionController.PacketLossPercent);
+                _conditionBuilder.Append("%  RTT ");
+                _conditionBuilder.Append(NetworkConditionController.TargetRoundTripMs);
+                _conditionBuilder.Append("ms");
+            }
+            else if (_conditions.IsRequested)
+            {
+                // 요청은 켜져 있지만 이 피어에는 걸리지 않는 상태입니다. 서버 피어이거나
+                // 아직 접속 전입니다. 조건이 걸린 줄 알고 촬영하는 것을 막는 표시입니다.
+                _conditionBuilder.Append("정상 (서버 피어 또는 접속 전)");
+            }
+            else
+            {
+                _conditionBuilder.Append("정상");
+            }
+
+            _conditionText = _conditionBuilder.ToString();
         }
     }
 }

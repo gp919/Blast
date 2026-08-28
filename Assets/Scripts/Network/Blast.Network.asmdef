@@ -4,7 +4,8 @@
     "references": [
         "Blast.Core",
         "Blast.Simulation",
-        "Unity.Netcode.Runtime"
+        "Unity.Netcode.Runtime",
+        "Unity.Multiplayer.Tools.NetworkSimulator.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

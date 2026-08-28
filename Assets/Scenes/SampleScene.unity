@@ -130,6 +130,7 @@ GameObject:
   - component: {fileID: 81799420}
   - component: {fileID: 81799419}
   - component: {fileID: 81799421}
+  - component: {fileID: 81799422}
   m_Layer: 0
   m_Name: DevHud
   m_TagString: Untagged
@@ -185,6 +186,18 @@ MonoBehaviour:
     m_PositionLeftToRight: 1
     m_PositionTopToBottom: 0
   <Configuration>k__BackingField: {fileID: 11400000, guid: 703e032b9c588124e874d0a554c1491b, type: 2}
+--- !u!114 &81799422
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 81799418}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1fec8320df393cd40b19ebc0ca9c14eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blast.Game::Blast.Game.NetworkConditionController
 --- !u!1 &332519735
 GameObject:
   m_ObjectHideFlags: 0
@@ -8559,6 +8572,7 @@ GameObject:
   - component: {fileID: 1118263517}
   - component: {fileID: 1118263516}
   - component: {fileID: 1118263515}
+  - component: {fileID: 1118263518}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -8655,6 +8669,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1118263518
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1118263514}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17737e0516da2445b9b0077ae2bd9b4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Multiplayer.Tools.NetStatsMonitor.Component::Unity.Multiplayer.Tools.NetStatsMonitor.RuntimeNetStatsMonitor
+  m_Visible: 1
+  m_MaxRefreshRate: 30
+  <CustomStyleSheet>k__BackingField: {fileID: 0}
+  <PanelSettingsOverride>k__BackingField: {fileID: 0}
+  <Position>k__BackingField:
+    <OverridePosition>k__BackingField: 1
+    m_PositionLeftToRight: 0
+    m_PositionTopToBottom: 0
+  <Configuration>k__BackingField: {fileID: 11400000, guid: 8f1b4e3792d8446399527749cfb591a2, type: 2}
 --- !u!1 &1877930543
 GameObject:
   m_ObjectHideFlags: 0
