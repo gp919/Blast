@@ -19,11 +19,12 @@ namespace Blast.Game
     public sealed class ConnectionHud : MonoBehaviour
     {
         private const float PanelWidth = 260f;
-        private const float PanelHeight = 250f;
+        private const float PanelHeight = 270f;
         private const float PanelMargin = 8f;
 
-        // 패널을 감췄을 때 조건 한 줄만 남기는 자리입니다. 줄바꿈 없이 한 줄에
-        // 들어가야 하므로 패널보다 넓게 잡습니다. 잘리면 영상에 수치가 반쪽만 남습니다.
+        // 패널을 감췄을 때 남기는 자리입니다. 권한 모드 한 줄과 네트워크 조건 한 줄을
+        // 위아래로 놓습니다. 줄바꿈 없이 한 줄에 들어가야 하므로 패널보다 넓게 잡습니다.
+        // 잘리면 영상에 수치가 반쪽만 남습니다.
         private const float ConditionStripWidth = 420f;
         private const float ConditionStripHeight = 18f;
 
@@ -42,6 +43,12 @@ namespace Blast.Game
         // 정상 조건과 지연 조건을 같은 세션 안에서 번갈아 보기 위한 키입니다.
         private const KeyCode ConditionToggleKey = KeyCode.F4;
 
+        // 권한 모드 표시는 세 가지 상태뿐이라 문자열을 미리 만들어 둡니다.
+        // StringBuilder 로 조립할 것이 없으므로 할당도 없습니다.
+        private const string AuthorityUnknownText = "권위 미확인 (접속 전)";
+        private const string AuthorityServerText = "권위 서버";
+        private const string AuthorityClientText = "권위 클라";
+
         private readonly ConnectionLauncher _launcher = new ConnectionLauncher();
         private readonly StringBuilder _statusBuilder = new StringBuilder(64);
         private readonly StringBuilder _conditionBuilder = new StringBuilder(48);
@@ -51,6 +58,12 @@ namespace Blast.Game
         // 패널을 감춰도 남는 한 줄입니다. 영상에 조건 수치가 찍혀 있지 않으면 나중에
         // 그 조건에서 찍었다고 주장할 근거가 없습니다.
         private string _conditionText = string.Empty;
+
+        // 같은 이유로 권한 모드도 남깁니다. 영상 02 는 권한 전환이 주제인데, 전환이
+        // 화면에 기록되지 않으면 어느 구간이 어느 모드인지 나중에 알 수 없습니다.
+        // 메인 에디터의 TickDriver 인스펙터에도 같은 값이 있지만 그쪽은 호스트
+        // 인스턴스만 보여 주므로, 클라이언트 창에는 이 표시가 유일한 근거입니다.
+        private string _authorityText = AuthorityUnknownText;
 
         private NetworkConditionController _conditions;
         private bool _isVisible = true;
@@ -74,6 +87,10 @@ namespace Blast.Game
             PlayerRegistry.PlayerSpawned += HandleRegistryChanged;
             PlayerRegistry.PlayerDespawned += HandleRegistryChanged;
 
+            // 권한 모드는 서버가 방송하므로 F3 를 누른 순간이 아니라 값이 돌아온
+            // 순간에 바뀝니다. 그 시점을 알려주는 것이 이 이벤트입니다.
+            PlayerRegistry.PlayerAuthorityChanged += HandleRegistryChanged;
+
             RebuildStatusText();
         }
 
@@ -88,6 +105,7 @@ namespace Blast.Game
 
             PlayerRegistry.PlayerSpawned -= HandleRegistryChanged;
             PlayerRegistry.PlayerDespawned -= HandleRegistryChanged;
+            PlayerRegistry.PlayerAuthorityChanged -= HandleRegistryChanged;
             _launcher.Detach();
         }
 
@@ -129,10 +147,16 @@ namespace Blast.Game
 
             if (!_isVisible)
             {
-                // 패널을 감춰도 조건 한 줄은 남깁니다. 촬영할 때 화면을 비우려고 F1 을
-                // 누르는데, 그 순간 조건 표시까지 사라지면 영상만 남고 근거가 사라집니다.
+                // 패널을 감춰도 권한과 조건 두 줄은 남깁니다. 촬영할 때 화면을 비우려고
+                // F1 을 누르는데, 그 순간 이 표시까지 사라지면 영상만 남고 근거가
+                // 사라집니다.
                 GUI.Label(
                     new Rect(PanelMargin, PanelMargin, ConditionStripWidth, ConditionStripHeight),
+                    _authorityText);
+                GUI.Label(
+                    new Rect(
+                        PanelMargin, PanelMargin + ConditionStripHeight,
+                        ConditionStripWidth, ConditionStripHeight),
                     _conditionText);
                 return;
             }
@@ -205,6 +229,7 @@ namespace Blast.Game
         // 같은 문자열을 새로 만들게 됩니다.
         private void RebuildStatusText()
         {
+            RebuildAuthorityText();
             RebuildConditionText();
 
             _statusBuilder.Clear();
@@ -247,11 +272,36 @@ namespace Blast.Game
             }
 
             _statusBuilder.Append('\n');
+            _statusBuilder.Append(_authorityText);
+
+            _statusBuilder.Append('\n');
             _statusBuilder.Append(_conditionText);
 
             _statusBuilder.Append("\nF1 표시  F2 소유권  F3 권한  F4 지연");
 
             _statusText = _statusBuilder.ToString();
+        }
+
+        // 권한 모드 한 줄입니다. 값은 로컬 소유 플레이어에서 읽습니다.
+        //
+        // 현재 구현에서 권한은 월드 단위입니다. 서버가 F3 요청을 받으면 레지스트리에
+        // 있는 모든 플레이어에 같은 값을 씁니다. NetworkPlayer 의
+        // RequestAuthorityModeRpc 주석 참조. 따라서 로컬 플레이어의 값 하나로 전체
+        // 상태를 대표할 수 있습니다. 플레이어마다 권한이 갈리는 구성이 생기면 이
+        // 표시부터 바꿔야 합니다.
+        private void RebuildAuthorityText()
+        {
+            PlayerHandle localPlayer = PlayerRegistry.LocalPlayer;
+            if (localPlayer == null)
+            {
+                // 접속 전이거나, 끊긴 뒤이거나, 플레이어 오브젝트가 없는 순수 서버입니다.
+                // 여기에 서버 권위라고 적으면 조건이 확정된 것처럼 보여서 그 상태로
+                // 촬영하게 됩니다.
+                _authorityText = AuthorityUnknownText;
+                return;
+            }
+
+            _authorityText = localPlayer.IsClientAuthority ? AuthorityClientText : AuthorityServerText;
         }
 
         // 네트워크 조건 한 줄입니다. 패널 안과 패널을 감췄을 때 양쪽에서 같은 문자열을

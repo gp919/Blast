@@ -24,6 +24,16 @@ namespace Blast.Network
         public static event Action<PlayerHandle> PlayerSpawned;
         public static event Action<PlayerHandle> PlayerDespawned;
 
+        // 권한 모드가 바뀐 시점에만 발생합니다. F3 전환은 서버를 거쳐 NetworkVariable
+        // 로 방송되므로, 누른 피어에서도 값이 곧바로 바뀌지 않고 돌아온 뒤에 바뀝니다.
+        // 폴링으로 잡으면 HUD 가 매 프레임 권한 값을 물어보게 되는데, 그 값은
+        // NetworkVariable 조회라 공짜가 아닙니다.
+        //
+        // 값 자체는 플레이어마다 따로 있지만 알림 창구는 여기 하나로 둡니다. 구독하는
+        // 쪽이 원하는 것은 "누가 바뀌었는가"가 아니라 "다시 그려야 한다"이고, 핸들마다
+        // 이벤트를 물리면 스폰과 디스폰마다 구독을 붙였다 떼는 관리가 생깁니다.
+        public static event Action<PlayerHandle> PlayerAuthorityChanged;
+
         public static IReadOnlyList<PlayerHandle> Players => _players;
 
         // 이 피어가 입력으로 조종하는 플레이어입니다. 접속 전에는 null 입니다.
@@ -59,6 +69,19 @@ namespace Blast.Network
             }
 
             PlayerDespawned?.Invoke(player);
+        }
+
+        // NetworkPlayer 가 권한 NetworkVariable 의 변경을 받았을 때 부릅니다.
+        // 등록되지 않은 핸들은 무시합니다. 디스폰 처리와 값 변경이 겹치는 순간에
+        // 이미 목록에서 빠진 핸들로 상위 계층을 깨우지 않기 위해서입니다.
+        internal static void NotifyAuthorityChanged(PlayerHandle player)
+        {
+            if (player == null || !_players.Contains(player))
+            {
+                return;
+            }
+
+            PlayerAuthorityChanged?.Invoke(player);
         }
 
         // 접속을 끊었다가 다시 붙는 경로에서 잔여 항목이 남지 않도록 하는 안전장치입니다.

@@ -68,6 +68,7 @@ namespace Blast.Network
             // 발행합니다. 구독이 늦으면 그 첫 발행을 놓칩니다.
             _position.OnValueChanged += HandlePositionChanged;
             _facing.OnValueChanged += HandleFacingChanged;
+            _clientAuthority.OnValueChanged += HandleAuthorityChanged;
 
             // IsOwner 와 OwnerClientId 는 이 시점에 확정되어 있습니다.
             _handle = new PlayerHandle(gameObject, OwnerClientId, IsOwner, (int)OwnerClientId, this);
@@ -84,6 +85,7 @@ namespace Blast.Network
         {
             _position.OnValueChanged -= HandlePositionChanged;
             _facing.OnValueChanged -= HandleFacingChanged;
+            _clientAuthority.OnValueChanged -= HandleAuthorityChanged;
 
             PlayerRegistry.Unregister(_handle);
             _handle = null;
@@ -97,6 +99,17 @@ namespace Blast.Network
         private void HandleFacingChanged(sbyte previous, sbyte current)
         {
             _handle?.ApplyNetState(_position.Value, current);
+        }
+
+        // 권한 값은 핸들에 복사해두지 않고 필요할 때마다 물어보는 구조라, 여기서는
+        // 값을 옮기지 않고 바뀌었다는 사실만 알립니다. 관측 수단이 스스로 갱신 시점을
+        // 알 수 있게 하는 것이 목적입니다.
+        //
+        // 서버에서도 발생합니다. NetworkVariable 은 쓴 쪽에서도 OnValueChanged 를
+        // 부르므로 호스트 화면과 클라이언트 화면이 같은 경로로 갱신됩니다.
+        private void HandleAuthorityChanged(bool previous, bool current)
+        {
+            PlayerRegistry.NotifyAuthorityChanged(_handle);
         }
 
         void IPlayerLink.SubmitInput(in InputCommand command)
